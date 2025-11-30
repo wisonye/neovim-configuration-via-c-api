@@ -1,3 +1,33 @@
 * My Neovim configuration rewrite in Rust
 
 Try rewriting my Neovim configuration entirely in =Rust=, =Odin=, =Hare=, or =C=. I've been looking for this for a very long time, just for fun:)
+
+** How to build and test
+
+#+BEGIN_SRC fish
+  #
+  # Release build
+  #
+  cargo build --release
+
+  #
+  # MacOS: Rename to neomv configuration lua folder
+  #
+  mv target/release/libmy_neovim_configuration.dylib ~/.config/nvim/lua/my_neovim_configuration.so
+
+  #
+  # Linux/BSD: Rename to neomv configuration lua folder
+  #
+  mv target/release/libmy_neovim_configuration.so ~/.config/nvim/lua/my_neovim_configuration.so
+#+END_SRC
+
+
+Create =~/.config/nvim/my-init.lua= with the following setttings:
+
+#+BEGIN_SRC lua-ts
+  require("my_neovim_configuration")
+#+END_SRC
+
+You should see the debug message:
+
+=>>> My Neovim Configuration has loaded successfully.=

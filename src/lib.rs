@@ -38,7 +38,7 @@ use nvim_oxi as nvim;
 /// 2. You need to copy/move the library file to your neovim configuration folder with the same name:
 ///
 ///    ```fish
-///    mv target/release/libmy_neovim_config.dylib ~/.config/nvim/lua/my_neovim_config.so
+///    mv target/release/libmy_neovim_configuration.dylib ~/.config/nvim/lua/my_neovim_configuration.so
 ///
 ///    # You can list the `luaopen` symbol name to confirm.
 ///    nm ~/.config/nvim/lua/my_neovim_configuration.so | rg luaopen
@@ -49,6 +49,12 @@ use nvim_oxi as nvim;
 ///
 #[nvim_oxi::plugin]
 fn my_neovim_configuration() -> bool {
-    nvim::print!("\n>>> My Neovim Configuration has loaded.");
+
+    settings::run();
+
+    nvim::print!("\n>>> My Neovim Configuration has loaded successfully.");
+
     true
 }
+
+mod settings;
