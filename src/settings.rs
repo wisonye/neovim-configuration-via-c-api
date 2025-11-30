@@ -6,7 +6,7 @@ use nvim::api::set_option_value;
 ///
 ///
 ///
-pub fn run() {
+pub fn setup() {
     let opts = OptionOpts::builder().scope(OptionScope::Local).build();
 
     //

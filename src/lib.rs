@@ -1,5 +1,3 @@
-use nvim_oxi as nvim;
-
 ///
 /// `#[nvim_oxi::plugin]` marks this function as the entrypoint of the plugin.
 ///
@@ -50,11 +48,15 @@ use nvim_oxi as nvim;
 #[nvim_oxi::plugin]
 fn my_neovim_configuration() -> bool {
 
-    settings::run();
+    settings::setup();
+    keybindings::setup();
 
-    nvim::print!("\n>>> My Neovim Configuration has loaded successfully.");
+    // nvim::print!("\n>>> My Neovim Configuration has loaded successfully.");
 
     true
 }
 
+// use nvim_oxi as nvim;
+
 mod settings;
+mod keybindings;
