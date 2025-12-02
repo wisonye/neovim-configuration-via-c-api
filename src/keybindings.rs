@@ -1,7 +1,7 @@
 use nvim_oxi as nvim;
 
 use nvim::api::opts::SetKeymapOpts;
-use nvim::api::set_keymap;
+use nvim::api::{set_keymap, set_var};
 use nvim::api::types::Mode;
 
 //
@@ -45,6 +45,24 @@ pub fn setup() {
         &SetKeymapOpts::builder().silent(true).build(),
     );
 
+    let _ = set_var("mapleader", " ");
+
+    // ------------------------------------------------------------------------------------
+    // Reload the current config
+    // ------------------------------------------------------------------------------------
+    let _ = set_keymap(
+        Mode::Normal,
+        "<leader>rr",
+        // ":luafile ~/.config/nvim/init.lua<CR>:setlocal nospell<CR>",
+        ":lua print(\">>> Reload configuration\")",
+        &SetKeymapOpts::builder().desc("Reload neovim config").build()
+    );
+
+
+    // ------------------------------------------------------------------------------------
+    // Normal settings
+    // ------------------------------------------------------------------------------------
+
     // Y: Copy to the end of the line
     let _ = set_keymap(
         Mode::Normal,
@@ -52,10 +70,6 @@ pub fn setup() {
         "y$",
         &SetKeymapOpts::builder().desc("Copy to end of line").build(),
     );
-
-    // ------------------------------------------------------------------------------------
-    // Normal settings
-    // ------------------------------------------------------------------------------------
 
     //
     // H and L instead of '^' and '$'
