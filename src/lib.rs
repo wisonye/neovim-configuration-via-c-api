@@ -50,6 +50,7 @@ fn my_neovim_configuration() -> bool {
 
     settings::setup();
     keybindings::setup();
+    my_dired::setup();
 
     // nvim::print!("\n>>> My Neovim Configuration has loaded successfully.");
 
@@ -60,3 +61,4 @@ fn my_neovim_configuration() -> bool {
 
 mod settings;
 mod keybindings;
+mod my_dired;

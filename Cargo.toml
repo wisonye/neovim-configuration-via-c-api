@@ -6,5 +6,10 @@ edition = "2024"
 [lib]
 crate-type = ["cdylib"]
 
+[features]
+default = [ "enable_my_dired_debug_print" ]
+enable_my_dired_debug_print = []
+
 [dependencies]
 nvim-oxi = { version = "0.6.0", features = ["neovim-0-11"] }
+# nvim-oxi = { path = "../nvim-oxi", features = ["neovim-0-11"] }

@@ -19,6 +19,9 @@ pub fn setup() {
     // Hide the vim mode
     let _ = set_option_value("showmode", false, &opts);
 
+    // No swapfile
+    let _ = set_option_value("swapfile", false, &opts);
+
     // Share system clipboard
     let _ = set_option_value("clipboard", "unnamedplus", &opts);
 
