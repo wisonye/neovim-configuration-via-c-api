@@ -55,12 +55,13 @@ fn get_dired_buffer(create_new_one_if_not_exists: bool) -> i32 {
 
         let opts = OptionOpts::builder().buffer(buffer.clone()).build();
         let buffer_type = get_option_value::<NvimString>("buftype", &opts);
-        let buffer_file_type = get_option_value::<NvimString>("filetype", &opts);
-        let buffer_is_hidden = get_option_value::<NvimString>("bufhidden", &opts);
-        let buffer_has_swapfile = get_option_value::<bool>("swapfile", &opts);
 
         #[cfg(feature = "enable_my_dired_debug_print")]
         {
+            let buffer_file_type = get_option_value::<NvimString>("filetype", &opts);
+            let buffer_is_hidden = get_option_value::<NvimString>("bufhidden", &opts);
+            let buffer_has_swapfile = get_option_value::<bool>("swapfile", &opts);
+
             nvim::print!(
                 concat!(
                     "\n>>> [ get_dired_buffer ] - buffer info: {{",
@@ -127,13 +128,19 @@ fn get_dired_buffer(create_new_one_if_not_exists: bool) -> i32 {
         //
         // Setup local buffer keybindings
         //
-
-        // let _ = set_keymap(
-        //     Mode::Normal,
-        //     "Y",
-        //     "y$",
-        //     &SetKeymapOpts::builder().desc("Dired buffer: Open directory or file").build(),
-        // );
+        let _ = dired_buffer.set_keymap(
+            Mode::Normal,
+            "h",
+            "",
+            &SetKeymapOpts::builder()
+                .desc("Dired buffer: Go to parent directory")
+                .callback(|_| {
+                    go_parent_directory();
+                    // nvim::print!("\n>>> Bind 'h' to 'go_parent_directory()'.");
+                    ()
+                })
+                .build(),
+        );
 
         //
         // Return the newly created dired buffer handle.
@@ -185,13 +192,21 @@ fn list_directories_into_dired_buffer(dired_buffer_handle: i32, dir: &str) {
 
             dired_buffer_content.extend(output.split('\n'));
 
-            let set_lines_result = dired_buffer.set_lines(0.., true, dired_buffer_content);
-
-            #[cfg(feature = "enable_my_dired_debug_print")]
-            nvim::print!(
-                "\n>>> [ my_dired - list_directories_into_dired_buffer ] set_lines_result: {:?}",
-                set_lines_result
-            );
+            //
+            // The first param `line_range: core::ops::RangeBounds<usize>` represents the
+            // ranage of `start line index` and `end line index` in the given neomvim buffer.
+            //
+            // In Rust, you can use slice syntax like below (zero-based)
+            //
+            // 0..0 - The first line
+            // 1..1 - The sencond line
+            // 2..4 - The range of third line to fifth line
+            // ..4  - The range of first line to fifth line
+            // 2..  - The range of third line to the last line
+            // 0..  - The range of first line to the last line
+            // ..   - The range of all lines
+            //
+            let _ = dired_buffer.set_lines(.., true, dired_buffer_content);
 
             //
             // Not allow to modify anymore
@@ -212,6 +227,7 @@ fn list_directories_into_dired_buffer(dired_buffer_handle: i32, dir: &str) {
             let lcd_cmd_info = CmdInfos::builder().cmd(lcd_command).args([dir]).build();
             let lcd_command_opts = CmdOpts::builder().output(false).build();
             let lcd_cmd_result = vim_cmd(&lcd_cmd_info, &lcd_command_opts);
+            let _ = &lcd_cmd_result;
             #[cfg(feature = "enable_my_dired_debug_print")]
             nvim::print!(
                 "\n>>> [ my_dired - list_directories_into_dired_buffer ] lcd_cmd_result: {:?}",
@@ -224,6 +240,7 @@ fn list_directories_into_dired_buffer(dired_buffer_handle: i32, dir: &str) {
             MY_DIRED_STATE.lock().unwrap().last_dired_buffer_dir = dir.to_owned();
         }
         cmd_utils::ExecuteCommandResult::Fail { error_message } => {
+            let _ = &error_message;
             #[cfg(feature = "enable_my_dired_debug_print")]
             nvim::print!(
                 "\n>>> [ my_dired - list_directories_into_dired_buffer ] error: {}",
@@ -234,7 +251,7 @@ fn list_directories_into_dired_buffer(dired_buffer_handle: i32, dir: &str) {
 }
 
 ///
-/// Open the dired buffer
+/// Open the dired buffer based on the current buffer filename
 ///
 fn open() {
     let dired_buffer_handle = get_dired_buffer(true);
@@ -293,6 +310,70 @@ fn open() {
             dir
         },
     );
+}
+
+///
+/// Go back to the parent directory
+///
+fn go_parent_directory() {
+    let dired_buffer_handle = get_dired_buffer(true);
+
+    let mut dir_to_open: Option<String> = None;
+
+    //
+    // Because you're trying to read the value from `MY_DIRED_STATE.last_dired_buffer_dir`,
+    // that means you have to hold the mutex lock until you done.
+    //
+    // The point is that `list_directories_into_dired_buffer` tries to write the value to
+    // `MY_DIRED_STATE.last_dired_buffer_dir`, that said it tries to hold the same mutex
+    // lock during the call. That's exactly a `DEAD LOCK` happends!!!
+    //
+    // To solve this, you have to limit the mutex lock in the smaller scope to guarantee
+    // to free the lock before calling `list_directories_into_dired_buffer`!!!
+    //
+    {
+        let mut locked_state = MY_DIRED_STATE.lock();
+        let state = locked_state.as_mut().unwrap();
+
+        #[cfg(feature = "enable_my_dired_debug_print")]
+        nvim::print!(
+            "\n>>> [ my_dired - go_parent_directory ] state.last_dired_buffer_dir: {:?}",
+            state.last_dired_buffer_dir
+        );
+
+        if state.last_dired_buffer_dir == "" {
+            return;
+        }
+
+        let current_path = std::path::PathBuf::from(&state.last_dired_buffer_dir);
+        if let Some(parent_dir) = current_path.parent() {
+            #[cfg(feature = "enable_my_dired_debug_print")]
+            nvim::print!(
+                concat!(
+                    "\n>>> [ my_dired - go_parent_directory ] {{",
+                    "\n\tstate.last_dired_buffer_dir: {:?}",
+                    "\n\tparent_dir: {:?}",
+                    "\n}}"
+                ),
+                state.last_dired_buffer_dir,
+                parent_dir
+            );
+
+            if let Some(dir) = parent_dir.to_str() {
+                dir_to_open = Some(String::from(dir));
+            }
+        }
+    }
+
+    //
+    // List and update `dired_buffer`
+    //
+    if let Some(dir) = dir_to_open {
+        #[cfg(feature = "enable_my_dired_debug_print")]
+        nvim::print!("\n>>> [ my_dired - go_parent_directory ] dir: {dir}",);
+
+        list_directories_into_dired_buffer(dired_buffer_handle, &dir);
+    }
 }
 
 ///
