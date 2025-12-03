@@ -167,6 +167,9 @@ fn list_directories_into_dired_buffer(dired_buffer_handle: i32, dir: &str) {
             exit_code,
             output,
         } => {
+            let _ = cmd_desc;
+            let _ = exit_code;
+
             #[cfg(feature = "enable_my_dired_debug_print")]
             nvim::print!(
                 "\n>>> [ my_dired - list_directories_into_dired_buffer ] ls output: {}",
@@ -201,14 +204,19 @@ fn list_directories_into_dired_buffer(dired_buffer_handle: i32, dir: &str) {
             let _ = set_current_buf(&dired_buffer);
             let _ = set_option_value("spell", false, &opts);
 
-            // //
-            // // Change working directory to `dir`, so you're able to manipulate files
-            // // and directories in the current dired_buffer without problem.
-            // //
-            // let lcd_command = "terminal";
-            // let infos = CmdInfos::builder().cmd(lcd_command).build();
-            // let lcd_command_opts = CmdOpts::builder().output(false).build();
-            // let _ = vim_cmd(&infos, &lcd_command_opts);
+            //
+            // Change working directory to `dir`, so you're able to manipulate files
+            // and directories in the current dired_buffer without problem.
+            //
+            let lcd_command = "lcd";
+            let lcd_cmd_info = CmdInfos::builder().cmd(lcd_command).args([dir]).build();
+            let lcd_command_opts = CmdOpts::builder().output(false).build();
+            let lcd_cmd_result = vim_cmd(&lcd_cmd_info, &lcd_command_opts);
+            #[cfg(feature = "enable_my_dired_debug_print")]
+            nvim::print!(
+                "\n>>> [ my_dired - list_directories_into_dired_buffer ] lcd_cmd_result: {:?}",
+                lcd_cmd_result
+            );
 
             //
             // Update internal state
@@ -258,6 +266,22 @@ fn open() {
 
     let current_dir = std::env::current_dir().unwrap();
 
+    #[cfg(feature = "enable_my_dired_debug_print")]
+    nvim::print!(
+        concat!(
+            "\n>>> [ my_dired - list_directories_into_dired_buffer ] open: {{",
+            "\n\tcurrent_buffer: {:?}",
+            "\n\tunwrapped_path: {:?}",
+            "\n\tdir: {:?}",
+            "\n\tcurrent_dir (use this if 'dir' is empty): {:?}",
+            "\n}}"
+        ),
+        current_buffer.handle(),
+        unwrapped_path,
+        dir,
+        current_dir,
+    );
+
     //
     // List and update `dired_buffer`
     //
@@ -290,9 +314,6 @@ pub fn setup() {
     );
 }
 
-#[cfg(feature = "enable_my_dired_debug_print")]
-use nvim_oxi as nvim;
-
 use nvim::{
     String as NvimString,
     api::{
@@ -302,6 +323,7 @@ use nvim::{
         types::{CmdInfos, Mode},
     },
 };
+use nvim_oxi as nvim;
 use rust_utils::cmd as cmd_utils;
 use std::sync::LazyLock;
 use std::sync::Mutex;

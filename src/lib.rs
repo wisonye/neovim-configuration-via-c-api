@@ -52,12 +52,14 @@ fn my_neovim_configuration() -> bool {
     keybindings::setup();
     my_dired::setup();
 
-    // nvim::print!("\n>>> My Neovim Configuration has loaded successfully.");
+    #[cfg(feature = "enable_plugin_debug_print")]
+    nvim::print!("\n>>> My Neovim Configuration has loaded successfully.");
 
     true
 }
 
-// use nvim_oxi as nvim;
+#[cfg(feature = "enable_plugin_debug_print")]
+use nvim_oxi as nvim;
 
 mod settings;
 mod keybindings;

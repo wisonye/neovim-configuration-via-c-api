@@ -8,6 +8,12 @@ crate-type = ["cdylib"]
 
 [features]
 default = [ "enable_my_dired_debug_print" ]
+# default = []
+
+# Plugin debug print: `src/lib.rs`
+enable_plugin_debug_print = []
+
+# `my_dired` specified debug print: `src/my_dired.rs`
 enable_my_dired_debug_print = []
 
 [dependencies]
