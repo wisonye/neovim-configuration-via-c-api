@@ -13,6 +13,7 @@ name = "my-neovim-configuration"
 version = "0.1.0"
 dependencies = [
  "nvim-oxi",
+ "rust_utils",
 ]
 
 [[package]]
@@ -91,6 +92,11 @@ checksum = "a338cc41d27e6cc6dce6cefc13a0729dfbb81c262b1f519331575dd80ef3067f"
 dependencies = [
  "proc-macro2",
 ]
+
+[[package]]
+name = "rust_utils"
+version = "0.1.0"
+source = "git+https://github.com/wisonye/rust-utils.git?branch=master#6e5a4acf427c53db61bfcba3b1a2ffe413de3325"
 
 [[package]]
 name = "serde"

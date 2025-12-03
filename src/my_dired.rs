@@ -160,6 +160,69 @@ fn list_directories_into_dired_buffer(dired_buffer_handle: i32, dir: &str) {
     // Allow to modify before finishing the command
     let opts = OptionOpts::builder().buffer(dired_buffer.clone()).build();
     let _ = set_option_value("modifiable", true, &opts);
+
+    match cmd_utils::execute_command(vec!["ls", "-lhta", dir]) {
+        cmd_utils::ExecuteCommandResult::Success {
+            cmd_desc,
+            exit_code,
+            output,
+        } => {
+            #[cfg(feature = "enable_my_dired_debug_print")]
+            nvim::print!(
+                "\n>>> [ my_dired - list_directories_into_dired_buffer ] ls output: {}",
+                output
+            );
+
+            //
+            // Set dired buffer content
+            //
+            let dir_title_line = format!("{dir}:");
+            let mut dired_buffer_content = vec!["# [ Dired buffer ]", &dir_title_line];
+            dired_buffer_content.reserve(100);
+
+            dired_buffer_content.extend(output.split('\n'));
+
+            let set_lines_result = dired_buffer.set_lines(0.., true, dired_buffer_content);
+
+            #[cfg(feature = "enable_my_dired_debug_print")]
+            nvim::print!(
+                "\n>>> [ my_dired - list_directories_into_dired_buffer ] set_lines_result: {:?}",
+                set_lines_result
+            );
+
+            //
+            // Not allow to modify anymore
+            //
+            let _ = set_option_value("modifiable", false, &opts);
+
+            //
+            // Switch to current window and disable spell checking
+            //
+            let _ = set_current_buf(&dired_buffer);
+            let _ = set_option_value("spell", false, &opts);
+
+            // //
+            // // Change working directory to `dir`, so you're able to manipulate files
+            // // and directories in the current dired_buffer without problem.
+            // //
+            // let lcd_command = "terminal";
+            // let infos = CmdInfos::builder().cmd(lcd_command).build();
+            // let lcd_command_opts = CmdOpts::builder().output(false).build();
+            // let _ = vim_cmd(&infos, &lcd_command_opts);
+
+            //
+            // Update internal state
+            //
+            MY_DIRED_STATE.lock().unwrap().last_dired_buffer_dir = dir.to_owned();
+        }
+        cmd_utils::ExecuteCommandResult::Fail { error_message } => {
+            #[cfg(feature = "enable_my_dired_debug_print")]
+            nvim::print!(
+                "\n>>> [ my_dired - list_directories_into_dired_buffer ] error: {}",
+                error_message
+            );
+        }
+    }
 }
 
 ///
@@ -174,9 +237,7 @@ fn open() {
     let current_buffer = Buffer::current();
     let buffer_filename = current_buffer.get_name();
     if let Err(error) = buffer_filename {
-        nvim::print!(
-            "\n>>> [ my_dired - open ] - Failed to get current buffer filename: {error:?}"
-        );
+        nvim::print!("\n>>> [ my_dired - open ] Failed to get current buffer filename: {error:?}");
         return;
     }
 
@@ -229,16 +290,18 @@ pub fn setup() {
     );
 }
 
+#[cfg(feature = "enable_my_dired_debug_print")]
 use nvim_oxi as nvim;
 
 use nvim::{
     String as NvimString,
     api::{
-        Buffer, create_buf, get_option_value, list_bufs,
-        opts::{OptionOpts, OptionScope, SetKeymapOpts},
-        set_keymap, set_option_value,
-        types::Mode,
+        Buffer, cmd as vim_cmd, create_buf, get_option_value, list_bufs,
+        opts::{CmdOpts, OptionOpts, SetKeymapOpts},
+        set_current_buf, set_keymap, set_option_value,
+        types::{CmdInfos, Mode},
     },
 };
+use rust_utils::cmd as cmd_utils;
 use std::sync::LazyLock;
 use std::sync::Mutex;

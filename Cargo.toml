@@ -13,3 +13,4 @@ enable_my_dired_debug_print = []
 [dependencies]
 nvim-oxi = { version = "0.6.0", features = ["neovim-0-11"] }
 # nvim-oxi = { path = "../nvim-oxi", features = ["neovim-0-11"] }
+rust_utils = { git = "https://github.com/wisonye/rust-utils.git", branch = "master" }

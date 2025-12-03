@@ -1,7 +1,7 @@
 use nvim_oxi::{self as nvim, api::opts::OptionScope};
 
 use nvim::api::{
-    Buffer, Window, cmd, get_option_value, open_win,
+    Buffer, Window, cmd as vim_cmd, get_option_value, open_win,
     opts::{CmdOpts, OptionOpts, SetKeymapOpts},
     set_keymap, set_option_value, set_var,
     types::{CmdInfos, Mode, WindowBorder, WindowConfig, WindowRelativeTo},
@@ -599,7 +599,7 @@ pub fn setup() {
                 let command = "terminal";
                 let infos = CmdInfos::builder().cmd(command).build();
                 let opts = CmdOpts::builder().output(false).build();
-                let _ = cmd(&infos, &opts);
+                let _ = vim_cmd(&infos, &opts);
 
                 ();
             })
