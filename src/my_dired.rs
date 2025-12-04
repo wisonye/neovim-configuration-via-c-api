@@ -136,7 +136,30 @@ fn get_dired_buffer(create_new_one_if_not_exists: bool) -> i32 {
                 .desc("Dired buffer: Go to parent directory")
                 .callback(|_| {
                     go_parent_directory();
-                    // nvim::print!("\n>>> Bind 'h' to 'go_parent_directory()'.");
+                    ()
+                })
+                .build(),
+        );
+        let _ = dired_buffer.set_keymap(
+            Mode::Normal,
+            "l",
+            "",
+            &SetKeymapOpts::builder()
+                .desc("Dired buffer: Open directory or file")
+                .callback(|_| {
+                    open_directory_or_file();
+                    ()
+                })
+                .build(),
+        );
+        let _ = dired_buffer.set_keymap(
+            Mode::Normal,
+            "<CR>",
+            "",
+            &SetKeymapOpts::builder()
+                .desc("Dired buffer: Open directory or file")
+                .callback(|_| {
+                    open_directory_or_file();
                     ()
                 })
                 .build(),
@@ -376,6 +399,285 @@ fn go_parent_directory() {
     }
 }
 
+#[derive(Debug)]
+struct CurrentDiredBufferItem {
+    dired_buffer_handle: i32,
+    name: String,
+    is_diretory: bool,
+}
+
+///
+/// Get back the current item in the dired_buffer, it returns:
+/// - `NONE` if not found
+/// - `Some(CurrentDiredBufferItem) if found
+///
+fn get_current_dired_buffer_item() -> Option<CurrentDiredBufferItem> {
+    let dired_buffer_handle = get_dired_buffer(false);
+    if dired_buffer_handle == -1 {
+        #[cfg(feature = "enable_my_dired_debug_print")]
+        nvim::print!("\n>>> [ my_dired - get_current_dired_buffer_item ] dired_buffer not found.");
+
+        return None;
+    }
+
+    //
+    // Check whether the dired_buffer is the current buffer or not
+    //
+    let current_buffer = Buffer::current();
+    if current_buffer.handle() != dired_buffer_handle {
+        #[cfg(feature = "enable_my_dired_debug_print")]
+        nvim::print!(
+            "\n>>> [ my_dired - get_current_dired_buffer_item ] dired_buffer is NOT the current buffer, abort."
+        );
+
+        return None;
+    }
+
+    //
+    // Get the current cursor line from the dired_buffer and get the last column
+    //
+    // Sample:
+    // drwxr-xr-x   6 wison wison   13B Dec  4 12:24 .
+    // -rw-r--r--   1 wison wison    0B Dec  4 12:24 filename that has space.txt
+    // drwxr-xr-x   3 wison wison   14B Dec  4 12:10 lua
+    // -rw-r--r--   1 wison wison  1.6K Dec  3 15:34 init.lua
+    // drwxr-xr-x   3 wison wison    3B Dec  3 15:34 ~
+    // drwxr-xr-x   2 wison wison   43B Dec  3 15:34 undo
+    // -rw-r--r--   1 wison wison   35B Dec  3 10:24 my-init.lua
+    // drwx------  28 wison wison   29B Dec  1 21:23 ..
+    //
+    let current_line_result = get_current_line();
+    if current_line_result.is_err() {
+        #[cfg(feature = "enable_my_dired_debug_print")]
+        nvim::print!(
+            "\n>>> [ my_dired - get_current_dired_buffer_item ] Failed to get current line."
+        );
+
+        return None;
+    }
+
+    let current_line = current_line_result.unwrap();
+    let columns = current_line.split(" ").collect::<Vec<&str>>();
+    if columns.len() < 9 {
+        #[cfg(feature = "enable_my_dired_debug_print")]
+        nvim::print!("\n>>> [ my_dired - get_current_dired_buffer_item ] dir_cols_len < 9.");
+
+        return None;
+    }
+
+    //
+    // Get dir/filename: loop backward to find the `time` col and then join the
+    // rest colums as `item_name`.
+    //
+    //Why? That's because sometimes filename has
+    // space charactor. e.g.:
+    //
+    // -rw-r--r--   1 wison wison    0B Dec  4 12:24 filename that has space.txt
+    //
+    let mut time_col_index = -1;
+    for index in (0..columns.len()).rev() {
+        if columns[index].find(":").is_some() {
+            time_col_index = index as i32;
+            break;
+        }
+    }
+
+    #[cfg(feature = "enable_my_dired_debug_print")]
+    nvim::print!(
+        "\n>>> [ my_dired - get_current_dired_buffer_item ] time_col_index: {time_col_index}"
+    );
+
+    if time_col_index == -1 {
+        #[cfg(feature = "enable_my_dired_debug_print")]
+        nvim::print!(
+            "\n>>> [ my_dired - get_current_dired_buffer_item ] Failed to find time column."
+        );
+
+        return None;
+    }
+
+    //
+    //  -rw-r--r--   1 wison wison    0B Dec  4 12:24 filename that has space.txt
+    //
+    // For this case: `current_line` filename has a or more space.
+    //
+    // You CANNOT get the rest string content just by slicing on it:
+    // `columns[time_col_index as usize + 1..]`
+    //
+    // As it gets back like this: `[filename,that,has,space.txt]` (no spaces
+    // included)!!!
+    //
+    // You have to find the `time column` and search its string content to get back
+    // the index. Then, slice the rest part of the string to get back the entire
+    // filename before you can escape the special characters!!!
+    //
+    let time_str = columns[time_col_index as usize];
+    let time_str_start_index = current_line.find(time_str).unwrap();
+    let slice_start_index = time_str_start_index + time_str.len() + 1;
+    let rest_part = &current_line[slice_start_index..];
+
+    Some(CurrentDiredBufferItem {
+        dired_buffer_handle,
+
+        // You need to escape the `#`, `%`, `$` and ` `
+        name: rest_part
+            .replace(" ", "\\ ")
+            .replace("%", "\\%")
+            .replace("#", "\\#")
+            .replace("$", "\\$"),
+
+        is_diretory: columns[0].find("d").is_some(),
+    })
+}
+
+///
+/// Go into the current directory or open file
+///
+fn open_directory_or_file() {
+    let current_item = get_current_dired_buffer_item();
+    if current_item.is_none() {
+        return;
+    }
+
+    let item = current_item.unwrap();
+
+    #[cfg(feature = "enable_my_dired_debug_print")]
+    nvim::print!(
+        "\n>>> [ my_dired - open_directory_or_file ] item: {:?}",
+        &item
+    );
+
+    //
+    // Don't handle the following cases
+    //
+    if item.is_diretory && item.name == "." {
+        #[cfg(feature = "enable_my_dired_debug_print")]
+        nvim::print!("\n>>> [ my_dired - open_directory_or_file ] Don't handle '.' dierctory");
+
+        return;
+    }
+
+    //
+    // `go_parent_directory()`
+    //
+    if item.is_diretory && item.name == ".." {
+        #[allow(unused_assignments)]
+        let mut latest_dir: Option<String> = None;
+        {
+            let locked_state = MY_DIRED_STATE.lock();
+            let state = locked_state.as_ref().unwrap();
+            latest_dir = Some(state.last_dired_buffer_dir.to_owned());
+        }
+
+        if let Some(d) = latest_dir {
+            let latest_path = std::path::PathBuf::from(&d);
+            if let Some(parent_dir) = latest_path.parent() {
+                #[cfg(feature = "enable_my_dired_debug_print")]
+                nvim::print!(
+                    concat!(
+                        "\n>>> [ my_dired - open_directory_or_file ] {{",
+                        "\n\tlatest_dir: {:?}",
+                        "\n\tparent_dir: {:?}",
+                        "\n}}"
+                    ),
+                    d,
+                    parent_dir
+                );
+
+                if let Some(dir) = parent_dir.to_str() {
+                    list_directories_into_dired_buffer(item.dired_buffer_handle, &dir);
+                }
+            }
+        }
+    }
+    //
+    // Go to the given directory
+    //
+    else if item.is_diretory && item.name != ".." {
+        #[allow(unused_assignments)]
+        let mut latest_dir: Option<String> = None;
+        {
+            let locked_state = MY_DIRED_STATE.lock();
+            let state = locked_state.as_ref().unwrap();
+            latest_dir = Some(state.last_dired_buffer_dir.to_owned());
+        }
+
+        if let Some(d) = latest_dir {
+            let mut new_path = std::path::PathBuf::from(&d);
+            new_path.push(&item.name);
+
+            if let Some(dir) = new_path.to_str() {
+                #[cfg(feature = "enable_my_dired_debug_print")]
+                nvim::print!(
+                    concat!(
+                        "\n>>> [ my_dired - open_directory_or_file ] {{",
+                        "\n\tlatest_dir: {:?}",
+                        "\n\titem_name: {:?}",
+                        "\n\tdir_to_open: {:?}",
+                        "\n}}"
+                    ),
+                    d,
+                    &item.name,
+                    dir
+                );
+
+                list_directories_into_dired_buffer(item.dired_buffer_handle, &dir);
+            }
+        }
+    }
+    //
+    // Open file into a new buffer
+    //
+    else if !item.is_diretory && item.name != "" {
+        #[allow(unused_assignments)]
+        let mut latest_dir: Option<String> = None;
+        {
+            let locked_state = MY_DIRED_STATE.lock();
+            let state = locked_state.as_ref().unwrap();
+            latest_dir = Some(state.last_dired_buffer_dir.to_owned());
+        }
+
+        if let Some(d) = latest_dir {
+            let mut file_path = std::path::PathBuf::from(&d);
+            file_path.push(&item.name);
+
+            if let Some(filename) = file_path.to_str() {
+                #[cfg(feature = "enable_my_dired_debug_print")]
+                nvim::print!(
+                    concat!(
+                        "\n>>> [ my_dired - open_directory_or_file ] {{",
+                        "\n\tlatest_dir: {:?}",
+                        "\n\titem_name: {:?}",
+                        "\n\tfile_to_open: {:?}",
+                        "\n}}"
+                    ),
+                    d,
+                    &item.name,
+                    filename
+                );
+
+                if let Ok(new_buffer) = create_buf(true, false) {
+                    let _ = set_current_buf(&new_buffer);
+
+                    let edit_command = "edit";
+                    let edit_cmd_info = CmdInfos::builder()
+                        .cmd(edit_command)
+                        .args([filename])
+                        .build();
+                    let edit_command_opts = CmdOpts::builder().output(false).build();
+                    let edit_cmd_result = vim_cmd(&edit_cmd_info, &edit_command_opts);
+                    let _ = &edit_cmd_result;
+                    #[cfg(feature = "enable_my_dired_debug_print")]
+                    nvim::print!(
+                        "\n>>> [ my_dired - list_directories_into_dired_buffer ] edit_cmd_result: {:?}",
+                        edit_cmd_result
+                    );
+                }
+            }
+        }
+    }
+}
+
 ///
 ///
 ///
@@ -398,13 +700,13 @@ pub fn setup() {
 use nvim::{
     String as NvimString,
     api::{
-        Buffer, cmd as vim_cmd, create_buf, get_option_value, list_bufs,
+        Buffer, cmd as vim_cmd, create_buf, get_current_line, get_option_value, list_bufs,
         opts::{CmdOpts, OptionOpts, SetKeymapOpts},
         set_current_buf, set_keymap, set_option_value,
         types::{CmdInfos, Mode},
     },
 };
-use nvim_oxi as nvim;
+use nvim_oxi::{self as nvim};
 use rust_utils::cmd as cmd_utils;
 use std::sync::LazyLock;
 use std::sync::Mutex;

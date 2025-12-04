@@ -7,8 +7,8 @@ edition = "2024"
 crate-type = ["cdylib"]
 
 [features]
-default = [ "enable_my_dired_debug_print" ]
-# default = []
+# default = [ "enable_my_dired_debug_print" ]
+default = []
 
 # Plugin debug print: `src/lib.rs`
 enable_plugin_debug_print = []
