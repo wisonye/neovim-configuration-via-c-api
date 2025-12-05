@@ -1,10 +1,10 @@
-use nvim_oxi::{self as nvim, api::opts::OptionScope};
+use crate::utils::{kill_other_windows, open_centred_floating_terminal_window};
 
-use nvim::api::{
-    Buffer, Window, cmd as vim_cmd, get_option_value, open_win,
-    opts::{CmdOpts, OptionOpts, SetKeymapOpts},
+use nvim_oxi::api::{
+    Window, get_option_value,
+    opts::{OptionOpts, SetKeymapOpts},
     set_keymap, set_option_value, set_var,
-    types::{CmdInfos, Mode, WindowBorder, WindowConfig, WindowRelativeTo},
+    types::Mode,
 };
 
 //
@@ -548,59 +548,7 @@ pub fn setup() {
             .desc("Terminal: open a floating terminal")
             .silent(true)
             .callback(|_| {
-                // Get terminal width and height
-                let opts = OptionOpts::builder().scope(OptionScope::Local).build();
-                let terminal_width = get_option_value::<u32>("columns", &opts).unwrap();
-                let terminal_height = get_option_value::<u32>("lines", &opts).unwrap();
-
-                // Calculate popup window width and height by ratio
-                let default_width_ratio = 0.8f32;
-                let default_height_ratio = 0.7f32;
-                let width = ((terminal_width as f32) * default_width_ratio).floor();
-                let height = ((terminal_height as f32) * default_height_ratio).floor();
-
-                // Center window in `editor` area by calculating the (left, top)
-                let cols = (((terminal_width as f32 - width) / 2f32).floor()) as u32;
-                let rows = (((terminal_height as f32 - height) / 2f32).floor()) as u32;
-
-                // // Debug print
-                // nvim::print!(
-                //     concat!(
-                //         "\n>>> Terminal size: {{",
-                //         "\n\t terminal_width: {}",
-                //         "\n\t terminal_height: {}",
-                //         "\n\t popup_width: {}",
-                //         "\n\t popup_height: {}",
-                //         "\n\t popup_left: {}",
-                //         "\n\t popup_right: {}",
-                //         "\n}}"
-                //     ),
-                //     terminal_width,
-                //     terminal_height,
-                //     width,
-                //     height,
-                //     cols,
-                //     rows,
-                // );
-
-                // Open popup window with current buffer
-                let enter_into_window = true;
-                let open_win_config = WindowConfig::builder()
-                    .relative(WindowRelativeTo::Editor)
-                    .width(width as u32)
-                    .height(height as u32)
-                    .row(rows)
-                    .col(cols)
-                    .border(WindowBorder::Rounded)
-                    .build();
-                let _ = open_win(&Buffer::current(), enter_into_window, &open_win_config);
-
-                // Run the `:terminal` command inside the popup window's buffer
-                let command = "terminal";
-                let infos = CmdInfos::builder().cmd(command).build();
-                let opts = CmdOpts::builder().output(false).build();
-                let _ = vim_cmd(&infos, &opts);
-
+                open_centred_floating_terminal_window();
                 ();
             })
             .build(),
@@ -640,31 +588,22 @@ pub fn setup() {
             .build(),
     );
 
-    // // ------------------------------------------------------------------------------------
-    // // 'my_utils' plugin lazy load
-    // // ------------------------------------------------------------------------------------
-    // let _ = set_keymap(
-    //     "n",
-    //     "<leader>1",
-    //     "<cmd>lua require('my_utils').kill_other_windows()<CR>",
-    //     {
-    //         silent = true,
-    //         desc = "Kill other windows"
-    //     }
-    // )
-
-    // // ------------------------------------------------------------------------------------
-    // // 'my_dired' plugin lazy load
-    // // ------------------------------------------------------------------------------------
-    // let _ = set_keymap(
-    //     "n",
-    //     "<C-c>j",
-    //     "<cmd>lua require('my_dired').open()<CR>",
-    //     {
-    //         silent = true,
-    //         desc = "Open my dired with current buffer directory"
-    //     }
-    // )
+    // ------------------------------------------------------------------------------------
+    // 'my_utils' plugin lazy load
+    // ------------------------------------------------------------------------------------
+    let _ = set_keymap(
+        Mode::Normal,
+        "<leader>1",
+        "",
+        &SetKeymapOpts::builder()
+            .desc("Kill other windows.")
+            .silent(true)
+            .callback(|_|{
+                kill_other_windows();
+                ()
+            })
+            .build(),
+    );
 
     // // ------------------------------------------------------------------------------------
     // // 'my_project_command' plugin lazy load

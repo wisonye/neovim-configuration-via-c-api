@@ -61,6 +61,7 @@ fn my_neovim_configuration() -> bool {
 #[cfg(feature = "enable_plugin_debug_print")]
 use nvim_oxi as nvim;
 
+mod utils;
 mod settings;
 mod keybindings;
 mod my_dired;
