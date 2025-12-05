@@ -37,6 +37,8 @@ static MY_DIRED_STATE: LazyLock<Mutex<MyDiredState>> =
 /// Get existing dired buffer, or create new one.
 ///
 fn get_dired_buffer(create_new_one_if_not_exists: bool) -> i32 {
+    const LOGGER_PREFIX: &'static str = "[ my_dired - get_dired_buffer ]";
+
     let mut dired_buffer_handle = -1;
 
     //
@@ -64,7 +66,7 @@ fn get_dired_buffer(create_new_one_if_not_exists: bool) -> i32 {
 
             nvim::print!(
                 concat!(
-                    "\n>>> [ get_dired_buffer ] - buffer info: {{",
+                    "\n>>> {} buffer info: {{",
                     "\n\tbuffer_no: {:?}",
                     "\n\tis_dired_buffer: {:?}",
                     "\n\tbuffer_type: {:?}",
@@ -73,6 +75,7 @@ fn get_dired_buffer(create_new_one_if_not_exists: bool) -> i32 {
                     "\n\tbuffer_has_swapfile: {:?}",
                     "\n}}"
                 ),
+                LOGGER_PREFIX,
                 buffer.handle(),
                 is_dired_buffer,
                 buffer_type,
@@ -88,7 +91,9 @@ fn get_dired_buffer(create_new_one_if_not_exists: bool) -> i32 {
                     dired_buffer_handle = buffer.handle();
 
                     #[cfg(feature = "enable_my_dired_debug_print")]
-                    nvim::print!("\n>>> Found existing dired buffer: {dired_buffer_handle}");
+                    nvim::print!(
+                        "\n>>> {LOGGER_PREFIX} Found existing dired buffer: {dired_buffer_handle}"
+                    );
 
                     return dired_buffer_handle;
                 }
@@ -105,7 +110,10 @@ fn get_dired_buffer(create_new_one_if_not_exists: bool) -> i32 {
         && let Ok(mut dired_buffer) = create_buf(true, false)
     {
         #[cfg(feature = "enable_my_dired_debug_print")]
-        nvim::print!("\n>>> Created new dired buffer: {}", dired_buffer.handle());
+        nvim::print!(
+            "\n>>> {LOGGER_PREFIX} Created new dired buffer: {}",
+            dired_buffer.handle()
+        );
 
         //
         // Set related options
@@ -164,6 +172,18 @@ fn get_dired_buffer(create_new_one_if_not_exists: bool) -> i32 {
                 })
                 .build(),
         );
+        let _ = dired_buffer.set_keymap(
+            Mode::Normal,
+            "A",
+            "",
+            &SetKeymapOpts::builder()
+                .desc("Dired buffer: Create file or directory")
+                .callback(|_| {
+                    create();
+                    ()
+                })
+                .build(),
+        );
 
         //
         // Return the newly created dired buffer handle.
@@ -179,6 +199,8 @@ fn get_dired_buffer(create_new_one_if_not_exists: bool) -> i32 {
 /// Run ls command and fill the dired buffer and switch it in current window
 ///
 fn list_directories_into_dired_buffer(dired_buffer_handle: i32, dir: &str) {
+    const LOGGER_PREFIX: &'static str = "[ my_dired - list_directories_into_dired_buffer ]";
+
     let mut dired_buffer = Buffer::from(dired_buffer_handle);
 
     //
@@ -201,10 +223,7 @@ fn list_directories_into_dired_buffer(dired_buffer_handle: i32, dir: &str) {
             let _ = exit_code;
 
             #[cfg(feature = "enable_my_dired_debug_print")]
-            nvim::print!(
-                "\n>>> [ my_dired - list_directories_into_dired_buffer ] ls output: {}",
-                output
-            );
+            nvim::print!("\n>>> {LOGGER_PREFIX}  ls output: {}", output);
 
             //
             // Set dired buffer content
@@ -252,10 +271,7 @@ fn list_directories_into_dired_buffer(dired_buffer_handle: i32, dir: &str) {
             let lcd_cmd_result = vim_cmd(&lcd_cmd_info, &lcd_command_opts);
             let _ = &lcd_cmd_result;
             #[cfg(feature = "enable_my_dired_debug_print")]
-            nvim::print!(
-                "\n>>> [ my_dired - list_directories_into_dired_buffer ] lcd_cmd_result: {:?}",
-                lcd_cmd_result
-            );
+            nvim::print!("\n>>> {LOGGER_PREFIX} lcd_cmd_result: {:?}", lcd_cmd_result);
 
             //
             // Update internal state
@@ -265,10 +281,7 @@ fn list_directories_into_dired_buffer(dired_buffer_handle: i32, dir: &str) {
         cmd_utils::ExecuteCommandResult::Fail { error_message } => {
             let _ = &error_message;
             #[cfg(feature = "enable_my_dired_debug_print")]
-            nvim::print!(
-                "\n>>> [ my_dired - list_directories_into_dired_buffer ] error: {}",
-                error_message
-            );
+            nvim::print!("\n>>> {LOGGER_PREFIX} error: {}", error_message);
         }
     }
 }
@@ -277,6 +290,8 @@ fn list_directories_into_dired_buffer(dired_buffer_handle: i32, dir: &str) {
 /// Open the dired buffer based on the current buffer filename
 ///
 fn open() {
+    const LOGGER_PREFIX: &'static str = "[ my_dired - open ]";
+
     let dired_buffer_handle = get_dired_buffer(true);
 
     //
@@ -285,7 +300,7 @@ fn open() {
     let current_buffer = Buffer::current();
     let buffer_filename = current_buffer.get_name();
     if let Err(error) = buffer_filename {
-        nvim::print!("\n>>> [ my_dired - open ] Failed to get current buffer filename: {error:?}");
+        nvim::print!("\n>>> {LOGGER_PREFIX} Failed to get current buffer filename: {error:?}");
         return;
     }
 
@@ -309,13 +324,14 @@ fn open() {
     #[cfg(feature = "enable_my_dired_debug_print")]
     nvim::print!(
         concat!(
-            "\n>>> [ my_dired - list_directories_into_dired_buffer ] open: {{",
+            "\n>>> {} {{",
             "\n\tcurrent_buffer: {:?}",
             "\n\tunwrapped_path: {:?}",
             "\n\tdir: {:?}",
             "\n\tcurrent_dir (use this if 'dir' is empty): {:?}",
             "\n}}"
         ),
+        LOGGER_PREFIX,
         current_buffer.handle(),
         unwrapped_path,
         dir,
@@ -339,6 +355,8 @@ fn open() {
 /// Go back to the parent directory
 ///
 fn go_parent_directory() {
+    const LOGGER_PREFIX: &'static str = "[ my_dired - go_parent_directory ]";
+
     let dired_buffer_handle = get_dired_buffer(true);
 
     let mut dir_to_open: Option<String> = None;
@@ -360,7 +378,7 @@ fn go_parent_directory() {
 
         #[cfg(feature = "enable_my_dired_debug_print")]
         nvim::print!(
-            "\n>>> [ my_dired - go_parent_directory ] state.last_dired_buffer_dir: {:?}",
+            "\n>>> {LOGGER_PREFIX} state.last_dired_buffer_dir: {:?}",
             state.last_dired_buffer_dir
         );
 
@@ -373,11 +391,12 @@ fn go_parent_directory() {
             #[cfg(feature = "enable_my_dired_debug_print")]
             nvim::print!(
                 concat!(
-                    "\n>>> [ my_dired - go_parent_directory ] {{",
+                    "\n>>> {} {{",
                     "\n\tstate.last_dired_buffer_dir: {:?}",
                     "\n\tparent_dir: {:?}",
                     "\n}}"
                 ),
+                LOGGER_PREFIX,
                 state.last_dired_buffer_dir,
                 parent_dir
             );
@@ -393,7 +412,7 @@ fn go_parent_directory() {
     //
     if let Some(dir) = dir_to_open {
         #[cfg(feature = "enable_my_dired_debug_print")]
-        nvim::print!("\n>>> [ my_dired - go_parent_directory ] dir: {dir}",);
+        nvim::print!("\n>>> {LOGGER_PREFIX} dir: {dir}",);
 
         list_directories_into_dired_buffer(dired_buffer_handle, &dir);
     }
@@ -412,10 +431,12 @@ struct CurrentDiredBufferItem {
 /// - `Some(CurrentDiredBufferItem) if found
 ///
 fn get_current_dired_buffer_item() -> Option<CurrentDiredBufferItem> {
+    const LOGGER_PREFIX: &'static str = "[ my_dired - get_current_dired_buffer_item ]";
+
     let dired_buffer_handle = get_dired_buffer(false);
     if dired_buffer_handle == -1 {
         #[cfg(feature = "enable_my_dired_debug_print")]
-        nvim::print!("\n>>> [ my_dired - get_current_dired_buffer_item ] dired_buffer not found.");
+        nvim::print!("\n>>> {LOGGER_PREFIX} dired_buffer not found.");
 
         return None;
     }
@@ -426,9 +447,7 @@ fn get_current_dired_buffer_item() -> Option<CurrentDiredBufferItem> {
     let current_buffer = Buffer::current();
     if current_buffer.handle() != dired_buffer_handle {
         #[cfg(feature = "enable_my_dired_debug_print")]
-        nvim::print!(
-            "\n>>> [ my_dired - get_current_dired_buffer_item ] dired_buffer is NOT the current buffer, abort."
-        );
+        nvim::print!("\n>>> {LOGGER_PREFIX} dired_buffer is NOT the current buffer, abort.");
 
         return None;
     }
@@ -449,9 +468,7 @@ fn get_current_dired_buffer_item() -> Option<CurrentDiredBufferItem> {
     let current_line_result = get_current_line();
     if current_line_result.is_err() {
         #[cfg(feature = "enable_my_dired_debug_print")]
-        nvim::print!(
-            "\n>>> [ my_dired - get_current_dired_buffer_item ] Failed to get current line."
-        );
+        nvim::print!("\n>>> {LOGGER_PREFIX} Failed to get current line.");
 
         return None;
     }
@@ -460,7 +477,7 @@ fn get_current_dired_buffer_item() -> Option<CurrentDiredBufferItem> {
     let columns = current_line.split(" ").collect::<Vec<&str>>();
     if columns.len() < 9 {
         #[cfg(feature = "enable_my_dired_debug_print")]
-        nvim::print!("\n>>> [ my_dired - get_current_dired_buffer_item ] dir_cols_len < 9.");
+        nvim::print!("\n>>> {LOGGER_PREFIX} dir_cols_len < 9.");
 
         return None;
     }
@@ -483,15 +500,11 @@ fn get_current_dired_buffer_item() -> Option<CurrentDiredBufferItem> {
     }
 
     #[cfg(feature = "enable_my_dired_debug_print")]
-    nvim::print!(
-        "\n>>> [ my_dired - get_current_dired_buffer_item ] time_col_index: {time_col_index}"
-    );
+    nvim::print!("\n>>> {LOGGER_PREFIX} time_col_index: {time_col_index}");
 
     if time_col_index == -1 {
         #[cfg(feature = "enable_my_dired_debug_print")]
-        nvim::print!(
-            "\n>>> [ my_dired - get_current_dired_buffer_item ] Failed to find time column."
-        );
+        nvim::print!("\n>>> {LOGGER_PREFIX} Failed to find time column.");
 
         return None;
     }
@@ -534,6 +547,8 @@ fn get_current_dired_buffer_item() -> Option<CurrentDiredBufferItem> {
 /// Go into the current directory or open file
 ///
 fn open_directory_or_file() {
+    const LOGGER_PREFIX: &'static str = "[ my_dired - open_directory_or_file ]";
+
     let current_item = get_current_dired_buffer_item();
     if current_item.is_none() {
         return;
@@ -542,17 +557,14 @@ fn open_directory_or_file() {
     let item = current_item.unwrap();
 
     #[cfg(feature = "enable_my_dired_debug_print")]
-    nvim::print!(
-        "\n>>> [ my_dired - open_directory_or_file ] item: {:?}",
-        &item
-    );
+    nvim::print!("\n>>> {LOGGER_PREFIX} item: {:?}", &item);
 
     //
     // Don't handle the following cases
     //
     if item.is_diretory && item.name == "." {
         #[cfg(feature = "enable_my_dired_debug_print")]
-        nvim::print!("\n>>> [ my_dired - open_directory_or_file ] Don't handle '.' dierctory");
+        nvim::print!("\n>>> {LOGGER_PREFIX} Don't handle '.' dierctory");
 
         return;
     }
@@ -575,11 +587,12 @@ fn open_directory_or_file() {
                 #[cfg(feature = "enable_my_dired_debug_print")]
                 nvim::print!(
                     concat!(
-                        "\n>>> [ my_dired - open_directory_or_file ] {{",
+                        "\n>>> {} {{",
                         "\n\tlatest_dir: {:?}",
                         "\n\tparent_dir: {:?}",
                         "\n}}"
                     ),
+                    LOGGER_PREFIX,
                     d,
                     parent_dir
                 );
@@ -610,12 +623,13 @@ fn open_directory_or_file() {
                 #[cfg(feature = "enable_my_dired_debug_print")]
                 nvim::print!(
                     concat!(
-                        "\n>>> [ my_dired - open_directory_or_file ] {{",
+                        "\n>>> {} {{",
                         "\n\tlatest_dir: {:?}",
                         "\n\titem_name: {:?}",
                         "\n\tdir_to_open: {:?}",
                         "\n}}"
                     ),
+                    LOGGER_PREFIX,
                     d,
                     &item.name,
                     dir
@@ -645,12 +659,13 @@ fn open_directory_or_file() {
                 #[cfg(feature = "enable_my_dired_debug_print")]
                 nvim::print!(
                     concat!(
-                        "\n>>> [ my_dired - open_directory_or_file ] {{",
+                        "\n>>> {} {{",
                         "\n\tlatest_dir: {:?}",
                         "\n\titem_name: {:?}",
                         "\n\tfile_to_open: {:?}",
                         "\n}}"
                     ),
+                    LOGGER_PREFIX,
                     d,
                     &item.name,
                     filename
@@ -669,13 +684,151 @@ fn open_directory_or_file() {
                     let _ = &edit_cmd_result;
                     #[cfg(feature = "enable_my_dired_debug_print")]
                     nvim::print!(
-                        "\n>>> [ my_dired - list_directories_into_dired_buffer ] edit_cmd_result: {:?}",
+                        "\n>>> {LOGGER_PREFIX} edit_cmd_result: {:?}",
                         edit_cmd_result
                     );
                 }
             }
         }
     }
+}
+
+///
+///
+///
+#[derive(Debug)]
+enum MyDiredItemAction {
+    Copy,
+    Create,
+    Delete,
+    Rename,
+}
+
+///
+///
+///
+fn run_action_on_dired_buffer_item(action: MyDiredItemAction) {
+    const LOGGER_PREFIX: &'static str = "run_action_on_dired_buffer_item";
+
+    #[cfg(feature = "enable_my_dired_debug_print")]
+    nvim::print!("\n>>> {LOGGER_PREFIX} action: {action:?}");
+
+    #[allow(unused_assignments)]
+    let mut current_item: Option<CurrentDiredBufferItem> = None;
+
+    match action {
+        MyDiredItemAction::Copy | MyDiredItemAction::Delete | MyDiredItemAction::Rename => {
+            current_item = get_current_dired_buffer_item();
+            if current_item.is_none() {
+                return;
+            }
+
+            //
+            // Don't handle the following cases
+            //
+            let item = current_item.as_ref().unwrap();
+            if item.is_diretory && (item.name == "." || item.name == "..") {
+                #[cfg(feature = "enable_my_dired_debug_print")]
+                nvim::print!("\n>>> {LOGGER_PREFIX} doesn't handle '.' or '..' directory");
+
+                return;
+            }
+        }
+        MyDiredItemAction::Create => {
+            let dired_buffer_handle = get_dired_buffer(false);
+            if dired_buffer_handle == -1 {
+                #[cfg(feature = "enable_my_dired_debug_print")]
+                nvim::print!("\n>>> {LOGGER_PREFIX} 'get_dired_buffer(false)' return '-1'.");
+
+                return;
+            }
+
+            if dired_buffer_handle != Buffer::current().handle() {
+                #[cfg(feature = "enable_my_dired_debug_print")]
+                nvim::print!("\n>>> {LOGGER_PREFIX} dired_buffer is NOT the current buffer, abort");
+
+                return;
+            }
+        }
+        _ => {}
+    }
+
+    //
+    // Save the internal state and release the mutex lock immediately.
+    //
+    #[allow(unused_assignments)]
+    let mut latest_dir = String::from("");
+    {
+        latest_dir = MY_DIRED_STATE.lock().unwrap().last_dired_buffer_dir.clone();
+    }
+
+    //
+    // Show action prompt and create action command
+    //
+    // let mut cmd_vec = Vec::<&str>::with_capacity(5);
+
+    match action {
+        MyDiredItemAction::Create => {
+            // let lua_execute_string = format!(
+            //     "lua vim.fn.input({{ prompt = {} }})",
+            //     "Create file or directory (end with '/')"
+            // );
+
+            // let lua_execute_string = format!(
+            //     "input('{}')",
+            //     "Create file or directory (end with '/')"
+            // );
+
+            // let eval_result = eval::<String>(&lua_execute_string);
+
+            // let eval_result = call_function::<Vec<String>, _>(
+            //     "print",
+            //     vec![">>>> Hello from Lua:)".to_string()]
+            // );
+
+            let prompt = "Create file or directory (end with '/')";
+            // let eval_result = call_function::<_, String>("input", (prompt,));
+            let eval_result =
+                call_function::<_, String>("luaeval", ("'print(\">>> hello from Lua.\")",));
+
+            // match result {
+            //     Ok(input) => println!("User entered: {}", input),
+            //     Err(e) => eprintln!("Error: {}", e),
+            // }
+
+            // #[cfg(feature = "enable_my_dired_debug_print")]
+            nvim::print!("\n>>> {LOGGER_PREFIX} eval_result: {eval_result:?}");
+        }
+        _ => {}
+    }
+}
+
+///
+/// Delete
+///
+fn delete() {
+    run_action_on_dired_buffer_item(MyDiredItemAction::Delete);
+}
+
+//
+// Create file or directory
+//
+fn create() {
+    run_action_on_dired_buffer_item(MyDiredItemAction::Create);
+}
+
+///
+/// Copy
+///
+fn copy() {
+    run_action_on_dired_buffer_item(MyDiredItemAction::Copy);
+}
+
+///
+/// Rename
+///
+fn rename() {
+    run_action_on_dired_buffer_item(MyDiredItemAction::Rename);
 }
 
 ///
@@ -700,7 +853,8 @@ pub fn setup() {
 use nvim::{
     String as NvimString,
     api::{
-        Buffer, cmd as vim_cmd, create_buf, get_current_line, get_option_value, list_bufs,
+        Buffer, call_function, cmd as vim_cmd, create_buf, eval, get_current_line,
+        get_option_value, list_bufs,
         opts::{CmdOpts, OptionOpts, SetKeymapOpts},
         set_current_buf, set_keymap, set_option_value,
         types::{CmdInfos, Mode},
