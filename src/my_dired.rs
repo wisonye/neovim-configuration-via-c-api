@@ -184,6 +184,18 @@ fn get_dired_buffer(create_new_one_if_not_exists: bool) -> i32 {
                 })
                 .build(),
         );
+        let _ = dired_buffer.set_keymap(
+            Mode::Normal,
+            "C",
+            "",
+            &SetKeymapOpts::builder()
+                .desc("Dired buffer: Copy file or directory")
+                .callback(|_| {
+                    copy();
+                    ()
+                })
+                .build(),
+        );
 
         //
         // Return the newly created dired buffer handle.
@@ -826,6 +838,39 @@ fn run_action_on_dired_buffer_item(action: MyDiredItemAction) {
                 } else {
                     cmd_vec.push("touch".to_string());
                     cmd_vec.push(new_item);
+                }
+            }
+        }
+        MyDiredItemAction::Copy => {
+            if current_item.is_none() {
+                return;
+            }
+
+            let item = current_item.unwrap();
+            let action_prompt = if item.is_diretory {
+                format!("Copy '{}' and all its contents to: ", item.name)
+            } else {
+                format!("Copy '{}' to: ", item.name)
+            };
+
+            let eval_result = call_function::<_, String>(
+                "luaeval",
+                (r#"vim.fn.input({ prompt =  _A })"#, action_prompt),
+            );
+
+            if let Ok(copied_to_item) = eval_result {
+                if copied_to_item != "" {
+                    #[cfg(feature = "enable_my_dired_debug_print")]
+                    nvim::print!(
+                        "\n>>> {LOGGER_PREFIX} action: 'copy', copy'{}' to '{}'",
+                        item.name,
+                        copied_to_item
+                    );
+
+                    cmd_vec.push("cp".to_string());
+                    cmd_vec.push("-rf".to_string());
+                    cmd_vec.push(item.name);
+                    cmd_vec.push(copied_to_item);
                 }
             }
         }
