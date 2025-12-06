@@ -37,6 +37,7 @@ static MY_DIRED_STATE: LazyLock<Mutex<MyDiredState>> =
 /// Get existing dired buffer, or create new one.
 ///
 fn get_dired_buffer(create_new_one_if_not_exists: bool) -> i32 {
+    #[cfg(feature = "enable_my_dired_debug_print")]
     const LOGGER_PREFIX: &'static str = "[ my_dired - get_dired_buffer ]";
 
     let mut dired_buffer_handle = -1;
@@ -235,6 +236,7 @@ fn get_dired_buffer(create_new_one_if_not_exists: bool) -> i32 {
 /// Run ls command and fill the dired buffer and switch it in current window
 ///
 fn list_directories_into_dired_buffer(dired_buffer_handle: i32, dir: &str) {
+    #[cfg(feature = "enable_my_dired_debug_print")]
     const LOGGER_PREFIX: &'static str = "[ my_dired - list_directories_into_dired_buffer ]";
 
     let mut dired_buffer = Buffer::from(dired_buffer_handle);
@@ -391,6 +393,7 @@ fn open() {
 /// Go back to the parent directory
 ///
 fn go_parent_directory() {
+    #[cfg(feature = "enable_my_dired_debug_print")]
     const LOGGER_PREFIX: &'static str = "[ my_dired - go_parent_directory ]";
 
     let dired_buffer_handle = get_dired_buffer(true);
@@ -467,6 +470,7 @@ struct CurrentDiredBufferItem {
 /// - `Some(CurrentDiredBufferItem) if found
 ///
 fn get_current_dired_buffer_item() -> Option<CurrentDiredBufferItem> {
+    #[cfg(feature = "enable_my_dired_debug_print")]
     const LOGGER_PREFIX: &'static str = "[ my_dired - get_current_dired_buffer_item ]";
 
     let dired_buffer_handle = get_dired_buffer(false);
@@ -583,6 +587,7 @@ fn get_current_dired_buffer_item() -> Option<CurrentDiredBufferItem> {
 /// Go into the current directory or open file
 ///
 fn open_directory_or_file() {
+    #[cfg(feature = "enable_my_dired_debug_print")]
     const LOGGER_PREFIX: &'static str = "[ my_dired - open_directory_or_file ]";
 
     let current_item = get_current_dired_buffer_item();
@@ -743,7 +748,178 @@ enum MyDiredItemAction {
 ///
 ///
 ///
+fn prompt_user_to_fill_cmd_list(
+    prompt: &str,
+    cmd_list: &mut Vec<String>,
+    commands: &[String],
+) -> bool {
+    //
+    // You can call `nvim_oxi::api::call_function()` to call Vimscript function (NOT lua
+    // function!!!).
+    //
+    // You need to provide the generic type when call this function.
+    //
+    // call_function::<ArgumentsGenericType, ReturnGenericType>(FunctionNameHere, ArgsHere);
+    //
+    // `ArgsHere` need to match the following syntax:
+    // - One param: (A,)
+    // - Twe param: (A, B,)
+    // - Three param: (A, B, C,)
+    // ...
+    //
+    let eval_result = call_function::<_, String>(
+        "luaeval",
+        //
+        // The magic global "_A" is the placeholder, it use the second argument!!!
+        //
+        // Example:
+        //     :luaeval('_A[1] + _A[2]', [40, 2])
+        //   ->: luaeval('40 + 2')
+        //
+        //     :luaeval('string.match(_A, "[a-z]+")', 'XYXfoo123')
+        //   ->:luaeval('string.match( 'XYXfoo123', "[a-z]+")')
+        //
+        (r#"vim.fn.input({ prompt =  _A })"#, prompt),
+    );
+
+    if let Ok(user_input) = eval_result {
+        if user_input == "" {
+            return false;
+        }
+
+        cmd_list.extend_from_slice(commands);
+        cmd_list.push(user_input);
+    }
+
+    return true;
+}
+
+///
+///
+///
+fn init_cmd_list_by_action(
+    action: MyDiredItemAction,
+    current_item: Option<CurrentDiredBufferItem>,
+    cmd_list: &mut Vec<String>,
+) -> bool {
+    #[cfg(feature = "enable_my_dired_debug_print")]
+    const LOGGER_PREFIX: &'static str = "init_cmd_list_by_action";
+
+    match action {
+        MyDiredItemAction::Create => {
+            let prompt = "Create file or directory (end with '/')";
+            let eval_result = call_function::<_, String>(
+                "luaeval",
+                (r#"vim.fn.input({ prompt =  _A })"#, prompt),
+            );
+
+            #[cfg(feature = "enable_my_dired_debug_print")]
+            nvim::print!("\n>>> {LOGGER_PREFIX} eval_result: {eval_result:?}");
+
+            if let Ok(new_item) = eval_result {
+                if new_item == "" {
+                    return false;
+                }
+
+                let item_bytes = new_item.as_bytes();
+                let is_dir_char = item_bytes[item_bytes.len() - 1usize] == '/' as u8;
+
+                if is_dir_char {
+                    cmd_list.push("mkdir".to_string());
+                    cmd_list.push((&new_item[..new_item.len() - 1]).to_owned());
+                } else {
+                    cmd_list.push("touch".to_string());
+                    cmd_list.push(new_item);
+                }
+            }
+        }
+        MyDiredItemAction::Copy => {
+            if current_item.is_none() {
+                return false;
+            }
+
+            let item = current_item.unwrap();
+            let action_prompt = if item.is_diretory {
+                format!("Copy '{}' and all its contents to: ", item.name)
+            } else {
+                format!("Copy '{}' to: ", item.name)
+            };
+
+            if !prompt_user_to_fill_cmd_list(
+                &action_prompt,
+                cmd_list,
+                &[
+                    "cp".to_string(),
+                    "-rf".to_string(),
+                    item.name.clone(),
+                ],
+            ) {
+                return false;
+            }
+        }
+        MyDiredItemAction::Rename => {
+            if current_item.is_none() {
+                return false;
+            }
+
+            let item = current_item.unwrap();
+            let action_prompt = if item.is_diretory {
+                format!("Rename '{}' and all its contents to: ", item.name)
+            } else {
+                format!("Rename '{}' to: ", item.name)
+            };
+
+            if !prompt_user_to_fill_cmd_list(
+                &action_prompt,
+                cmd_list,
+                &["mv".to_string(), item.name.clone()],
+            ) {
+                return false;
+            }
+        }
+        MyDiredItemAction::Delete => {
+            if current_item.is_none() {
+                return false;
+            }
+
+            let item = current_item.unwrap();
+            let action_prompt = if item.is_diretory {
+                format!(
+                    "Are you sure to delete '{}' and all its contents? (y/n)",
+                    item.name
+                )
+            } else {
+                format!("Are you sure to delete '{}'? (y/n)", item.name)
+            };
+
+            let eval_result = call_function::<_, String>(
+                "luaeval",
+                (r#"vim.fn.input({ prompt =  _A })"#, action_prompt),
+            );
+
+            if let Ok(delete_confirm) = eval_result {
+                if delete_confirm != "y" && delete_confirm != "Y" {
+                    return false;
+                }
+
+                cmd_list.push("rm".to_string());
+                cmd_list.push("-rf".to_string());
+                cmd_list.push(item.name.clone());
+            }
+        }
+        // _ => {
+        //     nvim::print!("\n>>> {LOGGER_PREFIX} unsupported action: {action:?}");
+        // }
+    }
+
+    true
+}
+
+///
+///
+///
 fn run_action_on_dired_buffer_item(action: MyDiredItemAction) {
+    #[cfg(feature = "enable_my_dired_debug_print")]
     const LOGGER_PREFIX: &'static str = "run_action_on_dired_buffer_item";
 
     #[cfg(feature = "enable_my_dired_debug_print")]
@@ -751,6 +927,8 @@ fn run_action_on_dired_buffer_item(action: MyDiredItemAction) {
 
     #[allow(unused_assignments)]
     let mut current_item: Option<CurrentDiredBufferItem> = None;
+
+    #[allow(unused_assignments)]
     let mut dired_buffer_handle = -1;
 
     match action {
@@ -789,7 +967,6 @@ fn run_action_on_dired_buffer_item(action: MyDiredItemAction) {
                 return;
             }
         }
-        _ => {}
     }
 
     //
@@ -802,168 +979,11 @@ fn run_action_on_dired_buffer_item(action: MyDiredItemAction) {
     }
 
     //
-    // Show action prompt and create action command
+    // Show action prompt and create action command list
     //
     let mut cmd_vec = Vec::<String>::with_capacity(5);
-
-    match action {
-        MyDiredItemAction::Create => {
-            //
-            // You can call `nvim_oxi::api::call_function()` to call Vimscript function (NOT lua
-            // function!!!).
-            //
-            // You need to provide the generic type when call this function.
-            //
-            // call_function::<ArgumentsGenericType, ReturnGenericType>(FunctionNameHere, ArgsHere);
-            //
-            // `ArgsHere` need to match the following syntax:
-            // - One param: (A,)
-            // - Twe param: (A, B,)
-            // - Three param: (A, B, C,)
-            // ...
-            //
-            let prompt = "Create file or directory (end with '/')";
-            let eval_result = call_function::<_, String>(
-                "luaeval",
-                //
-                // The magic global "_A" is the placeholder, it use the second argument!!!
-                //
-                // Example:
-                //     :luaeval('_A[1] + _A[2]', [40, 2])
-                //   ->: luaeval('40 + 2')
-                //
-                //     :luaeval('string.match(_A, "[a-z]+")', 'XYXfoo123')
-                //   ->:luaeval('string.match( 'XYXfoo123', "[a-z]+")')
-                //
-                (r#"vim.fn.input({ prompt =  _A })"#, prompt),
-            );
-
-            #[cfg(feature = "enable_my_dired_debug_print")]
-            nvim::print!("\n>>> {LOGGER_PREFIX} eval_result: {eval_result:?}");
-
-            if let Ok(new_item) = eval_result {
-                if new_item == "" {
-                    return;
-                }
-
-                let item_bytes = new_item.as_bytes();
-                let is_dir_char = item_bytes[item_bytes.len() - 1usize] == '/' as u8;
-
-                #[cfg(feature = "enable_my_dired_debug_print")]
-                nvim::print!(
-                    "\n>>> {LOGGER_PREFIX} action: 'create', new_item: {}, is_dir: {}",
-                    new_item,
-                    is_dir_char
-                );
-
-                if is_dir_char {
-                    cmd_vec.push("mkdir".to_string());
-                    cmd_vec.push((&new_item[..new_item.len() - 1]).to_owned());
-                } else {
-                    cmd_vec.push("touch".to_string());
-                    cmd_vec.push(new_item);
-                }
-            }
-        }
-        MyDiredItemAction::Copy => {
-            if current_item.is_none() {
-                return;
-            }
-
-            let item = current_item.unwrap();
-            let action_prompt = if item.is_diretory {
-                format!("Copy '{}' and all its contents to: ", item.name)
-            } else {
-                format!("Copy '{}' to: ", item.name)
-            };
-
-            let eval_result = call_function::<_, String>(
-                "luaeval",
-                (r#"vim.fn.input({ prompt =  _A })"#, action_prompt),
-            );
-
-            if let Ok(copied_to_item) = eval_result {
-                if copied_to_item != "" {
-                    #[cfg(feature = "enable_my_dired_debug_print")]
-                    nvim::print!(
-                        "\n>>> {LOGGER_PREFIX} action: 'copy', copy '{}' to '{}'",
-                        item.name,
-                        copied_to_item
-                    );
-
-                    cmd_vec.push("cp".to_string());
-                    cmd_vec.push("-rf".to_string());
-                    cmd_vec.push(item.name);
-                    cmd_vec.push(copied_to_item);
-                }
-            }
-        }
-        MyDiredItemAction::Rename => {
-            if current_item.is_none() {
-                return;
-            }
-
-            let item = current_item.unwrap();
-            let action_prompt = if item.is_diretory {
-                format!("Rename '{}' and all its contents to: ", item.name)
-            } else {
-                format!("Rename '{}' to: ", item.name)
-            };
-
-            let eval_result = call_function::<_, String>(
-                "luaeval",
-                (r#"vim.fn.input({ prompt =  _A })"#, action_prompt),
-            );
-
-            if let Ok(rename_to_item) = eval_result {
-                if rename_to_item != "" {
-                    #[cfg(feature = "enable_my_dired_debug_print")]
-                    nvim::print!(
-                        "\n>>> {LOGGER_PREFIX} action: 'rename', rename '{}' to '{}'",
-                        item.name,
-                        rename_to_item
-                    );
-
-                    cmd_vec.push("mv".to_string());
-                    cmd_vec.push(item.name);
-                    cmd_vec.push(rename_to_item);
-                }
-            }
-        }
-        MyDiredItemAction::Delete => {
-            if current_item.is_none() {
-                return;
-            }
-
-            let item = current_item.unwrap();
-            let action_prompt = if item.is_diretory {
-                format!("Are you sure to delete '{}' and all its contents? (y/n)", item.name)
-            } else {
-                format!("Are you sure to delete '{}'? (y/n)", item.name)
-            };
-
-            let eval_result = call_function::<_, String>(
-                "luaeval",
-                (r#"vim.fn.input({ prompt =  _A })"#, action_prompt),
-            );
-
-            if let Ok(delete_confirm) = eval_result {
-                if delete_confirm == "y" || delete_confirm == "Y"  {
-                    #[cfg(feature = "enable_my_dired_debug_print")]
-                    nvim::print!(
-                        "\n>>> {LOGGER_PREFIX} action: 'delete', delete '{}'",
-                        item.name,
-                    );
-
-                    cmd_vec.push("rm".to_string());
- cmd_vec.push("-rf".to_string());
-                    cmd_vec.push(item.name);
-                }
-            }
-        }
-        _ => {
-            nvim::print!("\n>>> {LOGGER_PREFIX} unsupported action: {action:?}");
-        }
+    if !init_cmd_list_by_action(action, current_item, &mut cmd_vec) {
+        return;
     }
 
     //
