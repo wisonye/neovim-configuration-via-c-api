@@ -715,6 +715,7 @@ fn run_action_on_dired_buffer_item(action: MyDiredItemAction) {
 
     #[allow(unused_assignments)]
     let mut current_item: Option<CurrentDiredBufferItem> = None;
+    let mut dired_buffer_handle = -1;
 
     match action {
         MyDiredItemAction::Copy | MyDiredItemAction::Delete | MyDiredItemAction::Rename => {
@@ -733,9 +734,11 @@ fn run_action_on_dired_buffer_item(action: MyDiredItemAction) {
 
                 return;
             }
+
+            dired_buffer_handle = item.dired_buffer_handle;
         }
         MyDiredItemAction::Create => {
-            let dired_buffer_handle = get_dired_buffer(false);
+            dired_buffer_handle = get_dired_buffer(false);
             if dired_buffer_handle == -1 {
                 #[cfg(feature = "enable_my_dired_debug_print")]
                 nvim::print!("\n>>> {LOGGER_PREFIX} 'get_dired_buffer(false)' return '-1'.");
@@ -765,7 +768,7 @@ fn run_action_on_dired_buffer_item(action: MyDiredItemAction) {
     //
     // Show action prompt and create action command
     //
-    // let mut cmd_vec = Vec::<&str>::with_capacity(5);
+    let mut cmd_vec = Vec::<String>::with_capacity(5);
 
     match action {
         MyDiredItemAction::Create => {
@@ -799,7 +802,7 @@ fn run_action_on_dired_buffer_item(action: MyDiredItemAction) {
                 (r#"vim.fn.input({ prompt =  _A })"#, prompt),
             );
 
-            // #[cfg(feature = "enable_my_dired_debug_print")]
+            #[cfg(feature = "enable_my_dired_debug_print")]
             nvim::print!("\n>>> {LOGGER_PREFIX} eval_result: {eval_result:?}");
 
             if let Ok(new_item) = eval_result {
@@ -807,17 +810,56 @@ fn run_action_on_dired_buffer_item(action: MyDiredItemAction) {
                     return;
                 }
 
-                let is_dir_char = new_item[new_item.len() - 1] == "/";
+                let item_bytes = new_item.as_bytes();
+                let is_dir_char = item_bytes[item_bytes.len() - 1usize] == '/' as u8;
 
-                // #[cfg(feature = "enable_my_dired_debug_print")]
+                #[cfg(feature = "enable_my_dired_debug_print")]
                 nvim::print!(
                     "\n>>> {LOGGER_PREFIX} action: 'create', new_item: {}, is_dir: {}",
                     new_item,
                     is_dir_char
                 );
+
+                if is_dir_char {
+                    cmd_vec.push("mkdir".to_string());
+                    cmd_vec.push((&new_item[..new_item.len() - 1]).to_owned());
+                } else {
+                    cmd_vec.push("touch".to_string());
+                    cmd_vec.push(new_item);
+                }
             }
         }
-        _ => {}
+        _ => {
+            nvim::print!("\n>>> {LOGGER_PREFIX} unsupported action: {action:?}");
+        }
+    }
+
+    //
+    // Run command
+    //
+    #[cfg(feature = "enable_my_dired_debug_print")]
+    nvim::print!("\n>>> {LOGGER_PREFIX} cmd_vec: {cmd_vec:?}");
+
+    let temp_cmd_list = cmd_vec.iter().map(|v| v.as_str()).collect();
+    match cmd_utils::execute_command(temp_cmd_list) {
+        cmd_utils::ExecuteCommandResult::Success {
+            cmd_desc,
+            exit_code,
+            output,
+        } => {
+            let _ = cmd_desc;
+            let _ = exit_code;
+            let _ = output;
+
+            if dired_buffer_handle != -1 {
+                list_directories_into_dired_buffer(dired_buffer_handle, &latest_dir);
+            }
+        }
+        cmd_utils::ExecuteCommandResult::Fail { error_message } => {
+            let _ = &error_message;
+            #[cfg(feature = "enable_my_dired_debug_print")]
+            nvim::print!("\n>>> {LOGGER_PREFIX} error: {}", error_message);
+        }
     }
 }
 
@@ -871,8 +913,8 @@ pub fn setup() {
 use nvim::{
     String as NvimString,
     api::{
-        Buffer, call_function, cmd as vim_cmd, create_buf, eval, get_current_line,
-        get_option_value, list_bufs,
+        Buffer, call_function, cmd as vim_cmd, create_buf, get_current_line, get_option_value,
+        list_bufs,
         opts::{CmdOpts, OptionOpts, SetKeymapOpts},
         set_current_buf, set_keymap, set_option_value,
         types::{CmdInfos, Mode},
