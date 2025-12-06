@@ -34,6 +34,20 @@ static MY_DIRED_STATE: LazyLock<Mutex<MyDiredState>> =
     LazyLock::new(|| Mutex::new(MyDiredState::default()));
 
 ///
+/// Fast goto directory
+///
+enum FastGotoDirectory {
+    Home,
+    EmacsConfig,
+    NeovimConfig,
+    Rust,
+    C,
+    Odin,
+    Temp,
+    Download,
+}
+
+///
 /// Get existing dired buffer, or create new one.
 ///
 fn get_dired_buffer(create_new_one_if_not_exists: bool) -> i32 {
@@ -217,6 +231,103 @@ fn get_dired_buffer(create_new_one_if_not_exists: bool) -> i32 {
                 .desc("Dired buffer: Delete file or directory")
                 .callback(|_| {
                     delete();
+                    ()
+                })
+                .build(),
+        );
+
+        let _ = dired_buffer.set_keymap(
+            Mode::Normal,
+            "gh",
+            "",
+            &SetKeymapOpts::builder()
+                .desc("Dired buffer: Go home")
+                .callback(|_| {
+                    go_to_directory(FastGotoDirectory::Home);
+                    ()
+                })
+                .build(),
+        );
+        let _ = dired_buffer.set_keymap(
+            Mode::Normal,
+            "ge",
+            "",
+            &SetKeymapOpts::builder()
+                .desc("Dired buffer: Go emacs config ('~/.emacs')")
+                .callback(|_| {
+                    go_to_directory(FastGotoDirectory::EmacsConfig);
+                    ()
+                })
+                .build(),
+        );
+        let _ = dired_buffer.set_keymap(
+            Mode::Normal,
+            "gn",
+            "",
+            &SetKeymapOpts::builder()
+                .desc("Dired buffer: Go neovim config ('~/.nvim')")
+                .callback(|_| {
+                    go_to_directory(FastGotoDirectory::NeovimConfig);
+                    ()
+                })
+                .build(),
+        );
+        let _ = dired_buffer.set_keymap(
+            Mode::Normal,
+            "gd",
+            "",
+            &SetKeymapOpts::builder()
+                .desc("Dired buffer: Go download ('~/Downloads')")
+                .callback(|_| {
+                    go_to_directory(FastGotoDirectory::Download);
+                    ()
+                })
+                .build(),
+        );
+        let _ = dired_buffer.set_keymap(
+            Mode::Normal,
+            "gt",
+            "",
+            &SetKeymapOpts::builder()
+                .desc("Dired buffer: Go temp ('~/temp')")
+                .callback(|_| {
+                    go_to_directory(FastGotoDirectory::Temp);
+                    ()
+                })
+                .build(),
+        );
+        let _ = dired_buffer.set_keymap(
+            Mode::Normal,
+            "gc",
+            "",
+            &SetKeymapOpts::builder()
+                .desc("Dired buffer: Go C ('~/c')")
+                .callback(|_| {
+                    go_to_directory(FastGotoDirectory::C);
+                    ()
+                })
+                .build(),
+        );
+        let _ = dired_buffer.set_keymap(
+            Mode::Normal,
+            "go",
+            "",
+            &SetKeymapOpts::builder()
+                .desc("Dired buffer: Go Odin ('~/odin')")
+                .callback(|_| {
+                    go_to_directory(FastGotoDirectory::Odin);
+                    ()
+                })
+                .build(),
+        );
+        let _ = dired_buffer.set_keymap(
+            Mode::Normal,
+            "gr",
+            "",
+            &SetKeymapOpts::builder()
+                .desc("Dired buffer: Go Rust ('~/rust')")
+                .callback(|_| {
+                    go_to_directory(FastGotoDirectory::Rust);
                     ()
                 })
                 .build(),
@@ -1040,6 +1151,52 @@ fn copy() {
 ///
 fn rename() {
     run_action_on_dired_buffer_item(MyDiredItemAction::Rename);
+}
+
+///
+/// Go to the given directory
+///
+fn go_to_directory(dir_type: FastGotoDirectory) {
+    let dired_buffer_handle = get_dired_buffer(true);
+
+    if dired_buffer_handle == -1 {
+        return;
+    }
+
+    if let Ok(home_dir) = std::env::var("HOME") {
+        match dir_type {
+            FastGotoDirectory::Home => {
+                list_directories_into_dired_buffer(dired_buffer_handle, &home_dir)
+            }
+            FastGotoDirectory::EmacsConfig => list_directories_into_dired_buffer(
+                dired_buffer_handle,
+                &format!("{home_dir}/.config/emacs"),
+            ),
+            FastGotoDirectory::NeovimConfig => list_directories_into_dired_buffer(
+                dired_buffer_handle,
+                &format!("{home_dir}/.config/nvim"),
+            ),
+            FastGotoDirectory::C => list_directories_into_dired_buffer(
+                dired_buffer_handle,
+                &format!("{home_dir}/c"),
+            ),
+            FastGotoDirectory::Odin => list_directories_into_dired_buffer(
+                dired_buffer_handle,
+                &format!("{home_dir}/odin"),
+            ),
+            FastGotoDirectory::Rust => list_directories_into_dired_buffer(
+                dired_buffer_handle,
+                &format!("{home_dir}/rust"),
+            ),
+            FastGotoDirectory::Temp => {
+                list_directories_into_dired_buffer(dired_buffer_handle, &format!("{home_dir}/temp"))
+            }
+            FastGotoDirectory::Download => list_directories_into_dired_buffer(
+                dired_buffer_handle,
+                &format!("{home_dir}/Downloads"),
+            ),
+        }
+    }
 }
 
 ///
