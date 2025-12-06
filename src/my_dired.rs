@@ -769,35 +769,53 @@ fn run_action_on_dired_buffer_item(action: MyDiredItemAction) {
 
     match action {
         MyDiredItemAction::Create => {
-            // let lua_execute_string = format!(
-            //     "lua vim.fn.input({{ prompt = {} }})",
-            //     "Create file or directory (end with '/')"
-            // );
-
-            // let lua_execute_string = format!(
-            //     "input('{}')",
-            //     "Create file or directory (end with '/')"
-            // );
-
-            // let eval_result = eval::<String>(&lua_execute_string);
-
-            // let eval_result = call_function::<Vec<String>, _>(
-            //     "print",
-            //     vec![">>>> Hello from Lua:)".to_string()]
-            // );
-
+            //
+            // You can call `nvim_oxi::api::call_function()` to call Vimscript function (NOT lua
+            // function!!!).
+            //
+            // You need to provide the generic type when call this function.
+            //
+            // call_function::<ArgumentsGenericType, ReturnGenericType>(FunctionNameHere, ArgsHere);
+            //
+            // `ArgsHere` need to match the following syntax:
+            // - One param: (A,)
+            // - Twe param: (A, B,)
+            // - Three param: (A, B, C,)
+            // ...
+            //
             let prompt = "Create file or directory (end with '/')";
-            // let eval_result = call_function::<_, String>("input", (prompt,));
-            let eval_result =
-                call_function::<_, String>("luaeval", ("'print(\">>> hello from Lua.\")",));
-
-            // match result {
-            //     Ok(input) => println!("User entered: {}", input),
-            //     Err(e) => eprintln!("Error: {}", e),
-            // }
+            let eval_result = call_function::<_, String>(
+                "luaeval",
+                //
+                // The magic global "_A" is the placeholder, it use the second argument!!!
+                //
+                // Example:
+                //     :luaeval('_A[1] + _A[2]', [40, 2])
+                //   ->: luaeval('40 + 2')
+                //
+                //     :luaeval('string.match(_A, "[a-z]+")', 'XYXfoo123')
+                //   ->:luaeval('string.match( 'XYXfoo123', "[a-z]+")')
+                //
+                (r#"vim.fn.input({ prompt =  _A })"#, prompt),
+            );
 
             // #[cfg(feature = "enable_my_dired_debug_print")]
             nvim::print!("\n>>> {LOGGER_PREFIX} eval_result: {eval_result:?}");
+
+            if let Ok(new_item) = eval_result {
+                if new_item == "" {
+                    return;
+                }
+
+                let is_dir_char = new_item[new_item.len() - 1] == "/";
+
+                // #[cfg(feature = "enable_my_dired_debug_print")]
+                nvim::print!(
+                    "\n>>> {LOGGER_PREFIX} action: 'create', new_item: {}, is_dir: {}",
+                    new_item,
+                    is_dir_char
+                );
+            }
         }
         _ => {}
     }
