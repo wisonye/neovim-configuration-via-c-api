@@ -151,187 +151,98 @@ fn get_dired_buffer(create_new_one_if_not_exists: bool) -> i32 {
         //
         // Setup local buffer keybindings
         //
-        let _ = dired_buffer.set_keymap(
-            Mode::Normal,
-            "h",
-            "",
-            &SetKeymapOpts::builder()
-                .desc("Dired buffer: Go to parent directory")
-                .callback(|_| {
-                    go_parent_directory();
-                    ()
-                })
-                .build(),
-        );
-        let _ = dired_buffer.set_keymap(
-            Mode::Normal,
-            "l",
-            "",
-            &SetKeymapOpts::builder()
-                .desc("Dired buffer: Open directory or file")
-                .callback(|_| {
-                    open_directory_or_file();
-                    ()
-                })
-                .build(),
-        );
-        let _ = dired_buffer.set_keymap(
-            Mode::Normal,
-            "<CR>",
-            "",
-            &SetKeymapOpts::builder()
-                .desc("Dired buffer: Open directory or file")
-                .callback(|_| {
-                    open_directory_or_file();
-                    ()
-                })
-                .build(),
-        );
-        let _ = dired_buffer.set_keymap(
-            Mode::Normal,
-            "A",
-            "",
-            &SetKeymapOpts::builder()
-                .desc("Dired buffer: Create file or directory")
-                .callback(|_| {
-                    create();
-                    ()
-                })
-                .build(),
-        );
-        let _ = dired_buffer.set_keymap(
-            Mode::Normal,
-            "C",
-            "",
-            &SetKeymapOpts::builder()
-                .desc("Dired buffer: Copy file or directory")
-                .callback(|_| {
-                    copy();
-                    ()
-                })
-                .build(),
-        );
-        let _ = dired_buffer.set_keymap(
-            Mode::Normal,
-            "R",
-            "",
-            &SetKeymapOpts::builder()
-                .desc("Dired buffer: Rename file or directory")
-                .callback(|_| {
-                    rename();
-                    ()
-                })
-                .build(),
-        );
-        let _ = dired_buffer.set_keymap(
-            Mode::Normal,
-            "D",
-            "",
-            &SetKeymapOpts::builder()
-                .desc("Dired buffer: Delete file or directory")
-                .callback(|_| {
-                    delete();
-                    ()
-                })
-                .build(),
-        );
+        let dired_buffer_local_keybindings: Vec<(&str, &str, Box<dyn Fn()>)> = vec![
+            (
+                "h",
+                "Dired buffer: Go to parent directory",
+                Box::new(|| go_parent_directory()),
+            ),
+            (
+                "l",
+                "Dired buffer: Open directory or file",
+                Box::new(|| open_directory_or_file()),
+            ),
+            (
+                "<CR>",
+                "Dired buffer: Open directory or file",
+                Box::new(|| open_directory_or_file()),
+            ),
+            (
+                "A",
+                "Dired buffer: Create file or directory",
+                Box::new(|| create()),
+            ),
+            (
+                "C",
+                "Dired buffer: Copy file or directory",
+                Box::new(|| copy()),
+            ),
+            (
+                "D",
+                "Dired buffer: Delete file or directory",
+                Box::new(|| delete()),
+            ),
+            (
+                "R",
+                "Dired buffer: Rename file or directory",
+                Box::new(|| rename()),
+            ),
+            (
+                "gh",
+                "Dired buffer: Go home",
+                Box::new(|| go_to_directory(FastGotoDirectory::Home)),
+            ),
+            (
+                "ge",
+                "Dired buffer: Go emacs config ('~/.emacs')",
+                Box::new(|| go_to_directory(FastGotoDirectory::EmacsConfig)),
+            ),
+            (
+                "gn",
+                "Dired buffer: Go neovim config ()",
+                Box::new(|| go_to_directory(FastGotoDirectory::NeovimConfig)),
+            ),
+            (
+                "gd",
+                "Dired buffer: Go download ('~/Downloads')",
+                Box::new(|| go_to_directory(FastGotoDirectory::Download)),
+            ),
+            (
+                "gt",
+                "Dired buffer: Go temp ('~/temp')",
+                Box::new(|| go_to_directory(FastGotoDirectory::Temp)),
+            ),
+            (
+                "gc",
+                "Dired buffer: Go C ('~/c')",
+                Box::new(|| go_to_directory(FastGotoDirectory::C)),
+            ),
+            (
+                "go",
+                "Dired buffer: Go Odin ('~/odin')",
+                Box::new(|| go_to_directory(FastGotoDirectory::Odin)),
+            ),
+            (
+                "gr",
+                "Dired buffer: Go Rust ('~/rust')",
+                Box::new(|| go_to_directory(FastGotoDirectory::Rust)),
+            ),
+        ];
 
-        let _ = dired_buffer.set_keymap(
-            Mode::Normal,
-            "gh",
-            "",
-            &SetKeymapOpts::builder()
-                .desc("Dired buffer: Go home")
-                .callback(|_| {
-                    go_to_directory(FastGotoDirectory::Home);
-                    ()
-                })
-                .build(),
-        );
-        let _ = dired_buffer.set_keymap(
-            Mode::Normal,
-            "ge",
-            "",
-            &SetKeymapOpts::builder()
-                .desc("Dired buffer: Go emacs config ('~/.emacs')")
-                .callback(|_| {
-                    go_to_directory(FastGotoDirectory::EmacsConfig);
-                    ()
-                })
-                .build(),
-        );
-        let _ = dired_buffer.set_keymap(
-            Mode::Normal,
-            "gn",
-            "",
-            &SetKeymapOpts::builder()
-                .desc("Dired buffer: Go neovim config ('~/.nvim')")
-                .callback(|_| {
-                    go_to_directory(FastGotoDirectory::NeovimConfig);
-                    ()
-                })
-                .build(),
-        );
-        let _ = dired_buffer.set_keymap(
-            Mode::Normal,
-            "gd",
-            "",
-            &SetKeymapOpts::builder()
-                .desc("Dired buffer: Go download ('~/Downloads')")
-                .callback(|_| {
-                    go_to_directory(FastGotoDirectory::Download);
-                    ()
-                })
-                .build(),
-        );
-        let _ = dired_buffer.set_keymap(
-            Mode::Normal,
-            "gt",
-            "",
-            &SetKeymapOpts::builder()
-                .desc("Dired buffer: Go temp ('~/temp')")
-                .callback(|_| {
-                    go_to_directory(FastGotoDirectory::Temp);
-                    ()
-                })
-                .build(),
-        );
-        let _ = dired_buffer.set_keymap(
-            Mode::Normal,
-            "gc",
-            "",
-            &SetKeymapOpts::builder()
-                .desc("Dired buffer: Go C ('~/c')")
-                .callback(|_| {
-                    go_to_directory(FastGotoDirectory::C);
-                    ()
-                })
-                .build(),
-        );
-        let _ = dired_buffer.set_keymap(
-            Mode::Normal,
-            "go",
-            "",
-            &SetKeymapOpts::builder()
-                .desc("Dired buffer: Go Odin ('~/odin')")
-                .callback(|_| {
-                    go_to_directory(FastGotoDirectory::Odin);
-                    ()
-                })
-                .build(),
-        );
-        let _ = dired_buffer.set_keymap(
-            Mode::Normal,
-            "gr",
-            "",
-            &SetKeymapOpts::builder()
-                .desc("Dired buffer: Go Rust ('~/rust')")
-                .callback(|_| {
-                    go_to_directory(FastGotoDirectory::Rust);
-                    ()
-                })
-                .build(),
-        );
+        for bindings in dired_buffer_local_keybindings {
+            let _ = dired_buffer.set_keymap(
+                Mode::Normal,
+                bindings.0,
+                "",
+                &SetKeymapOpts::builder()
+                    .desc(bindings.1)
+                    .callback(move |_| {
+                        bindings.2();
+                        ()
+                    })
+                    .build(),
+            );
+        }
 
         //
         // Return the newly created dired buffer handle.
@@ -1176,18 +1087,15 @@ fn go_to_directory(dir_type: FastGotoDirectory) {
                 dired_buffer_handle,
                 &format!("{home_dir}/.config/nvim"),
             ),
-            FastGotoDirectory::C => list_directories_into_dired_buffer(
-                dired_buffer_handle,
-                &format!("{home_dir}/c"),
-            ),
-            FastGotoDirectory::Odin => list_directories_into_dired_buffer(
-                dired_buffer_handle,
-                &format!("{home_dir}/odin"),
-            ),
-            FastGotoDirectory::Rust => list_directories_into_dired_buffer(
-                dired_buffer_handle,
-                &format!("{home_dir}/rust"),
-            ),
+            FastGotoDirectory::C => {
+                list_directories_into_dired_buffer(dired_buffer_handle, &format!("{home_dir}/c"))
+            }
+            FastGotoDirectory::Odin => {
+                list_directories_into_dired_buffer(dired_buffer_handle, &format!("{home_dir}/odin"))
+            }
+            FastGotoDirectory::Rust => {
+                list_directories_into_dired_buffer(dired_buffer_handle, &format!("{home_dir}/rust"))
+            }
             FastGotoDirectory::Temp => {
                 list_directories_into_dired_buffer(dired_buffer_handle, &format!("{home_dir}/temp"))
             }
