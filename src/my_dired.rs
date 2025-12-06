@@ -469,7 +469,7 @@ struct CurrentDiredBufferItem {
 /// - `NONE` if not found
 /// - `Some(CurrentDiredBufferItem) if found
 ///
-fn get_current_dired_buffer_item() -> Option<CurrentDiredBufferItem> {
+fn get_current_dired_buffer_item(escape_filename: bool) -> Option<CurrentDiredBufferItem> {
     #[cfg(feature = "enable_my_dired_debug_print")]
     const LOGGER_PREFIX: &'static str = "[ my_dired - get_current_dired_buffer_item ]";
 
@@ -573,11 +573,15 @@ fn get_current_dired_buffer_item() -> Option<CurrentDiredBufferItem> {
         dired_buffer_handle,
 
         // You need to escape the `#`, `%`, `$` and ` `
-        name: rest_part
-            .replace(" ", "\\ ")
-            .replace("%", "\\%")
-            .replace("#", "\\#")
-            .replace("$", "\\$"),
+        name: if escape_filename {
+            rest_part
+                .replace(" ", "\\ ")
+                .replace("%", "\\%")
+                .replace("#", "\\#")
+                .replace("$", "\\$")
+        } else {
+            rest_part.to_string()
+        },
 
         is_diretory: columns[0].find("d").is_some(),
     })
@@ -590,7 +594,7 @@ fn open_directory_or_file() {
     #[cfg(feature = "enable_my_dired_debug_print")]
     const LOGGER_PREFIX: &'static str = "[ my_dired - open_directory_or_file ]";
 
-    let current_item = get_current_dired_buffer_item();
+    let current_item = get_current_dired_buffer_item(true);
     if current_item.is_none() {
         return;
     }
@@ -848,11 +852,7 @@ fn init_cmd_list_by_action(
             if !prompt_user_to_fill_cmd_list(
                 &action_prompt,
                 cmd_list,
-                &[
-                    "cp".to_string(),
-                    "-rf".to_string(),
-                    item.name.clone(),
-                ],
+                &["cp".to_string(), "-rf".to_string(), item.name.clone()],
             ) {
                 return false;
             }
@@ -906,10 +906,9 @@ fn init_cmd_list_by_action(
                 cmd_list.push("-rf".to_string());
                 cmd_list.push(item.name.clone());
             }
-        }
-        // _ => {
-        //     nvim::print!("\n>>> {LOGGER_PREFIX} unsupported action: {action:?}");
-        // }
+        } // _ => {
+          //     nvim::print!("\n>>> {LOGGER_PREFIX} unsupported action: {action:?}");
+          // }
     }
 
     true
@@ -933,7 +932,7 @@ fn run_action_on_dired_buffer_item(action: MyDiredItemAction) {
 
     match action {
         MyDiredItemAction::Copy | MyDiredItemAction::Delete | MyDiredItemAction::Rename => {
-            current_item = get_current_dired_buffer_item();
+            current_item = get_current_dired_buffer_item(false);
             if current_item.is_none() {
                 return;
             }
