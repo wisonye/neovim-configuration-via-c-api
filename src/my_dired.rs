@@ -196,6 +196,30 @@ fn get_dired_buffer(create_new_one_if_not_exists: bool) -> i32 {
                 })
                 .build(),
         );
+        let _ = dired_buffer.set_keymap(
+            Mode::Normal,
+            "R",
+            "",
+            &SetKeymapOpts::builder()
+                .desc("Dired buffer: Rename file or directory")
+                .callback(|_| {
+                    rename();
+                    ()
+                })
+                .build(),
+        );
+        let _ = dired_buffer.set_keymap(
+            Mode::Normal,
+            "D",
+            "",
+            &SetKeymapOpts::builder()
+                .desc("Dired buffer: Delete file or directory")
+                .callback(|_| {
+                    delete();
+                    ()
+                })
+                .build(),
+        );
 
         //
         // Return the newly created dired buffer handle.
@@ -862,7 +886,7 @@ fn run_action_on_dired_buffer_item(action: MyDiredItemAction) {
                 if copied_to_item != "" {
                     #[cfg(feature = "enable_my_dired_debug_print")]
                     nvim::print!(
-                        "\n>>> {LOGGER_PREFIX} action: 'copy', copy'{}' to '{}'",
+                        "\n>>> {LOGGER_PREFIX} action: 'copy', copy '{}' to '{}'",
                         item.name,
                         copied_to_item
                     );
@@ -871,6 +895,69 @@ fn run_action_on_dired_buffer_item(action: MyDiredItemAction) {
                     cmd_vec.push("-rf".to_string());
                     cmd_vec.push(item.name);
                     cmd_vec.push(copied_to_item);
+                }
+            }
+        }
+        MyDiredItemAction::Rename => {
+            if current_item.is_none() {
+                return;
+            }
+
+            let item = current_item.unwrap();
+            let action_prompt = if item.is_diretory {
+                format!("Rename '{}' and all its contents to: ", item.name)
+            } else {
+                format!("Rename '{}' to: ", item.name)
+            };
+
+            let eval_result = call_function::<_, String>(
+                "luaeval",
+                (r#"vim.fn.input({ prompt =  _A })"#, action_prompt),
+            );
+
+            if let Ok(rename_to_item) = eval_result {
+                if rename_to_item != "" {
+                    #[cfg(feature = "enable_my_dired_debug_print")]
+                    nvim::print!(
+                        "\n>>> {LOGGER_PREFIX} action: 'rename', rename '{}' to '{}'",
+                        item.name,
+                        rename_to_item
+                    );
+
+                    cmd_vec.push("mv".to_string());
+                    cmd_vec.push(item.name);
+                    cmd_vec.push(rename_to_item);
+                }
+            }
+        }
+        MyDiredItemAction::Delete => {
+            if current_item.is_none() {
+                return;
+            }
+
+            let item = current_item.unwrap();
+            let action_prompt = if item.is_diretory {
+                format!("Are you sure to delete '{}' and all its contents? (y/n)", item.name)
+            } else {
+                format!("Are you sure to delete '{}'? (y/n)", item.name)
+            };
+
+            let eval_result = call_function::<_, String>(
+                "luaeval",
+                (r#"vim.fn.input({ prompt =  _A })"#, action_prompt),
+            );
+
+            if let Ok(delete_confirm) = eval_result {
+                if delete_confirm == "y" || delete_confirm == "Y"  {
+                    #[cfg(feature = "enable_my_dired_debug_print")]
+                    nvim::print!(
+                        "\n>>> {LOGGER_PREFIX} action: 'delete', delete '{}'",
+                        item.name,
+                    );
+
+                    cmd_vec.push("rm".to_string());
+ cmd_vec.push("-rf".to_string());
+                    cmd_vec.push(item.name);
                 }
             }
         }
