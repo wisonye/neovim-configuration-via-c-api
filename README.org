@@ -1,8 +1,92 @@
-* My Neovim configuration rewrite in Rust
+* My Neovim configuration rewrite in system programming language
 
-Try rewriting my Neovim configuration entirely in =Rust=, =Odin=, =Hare=, or =C=. I've been looking for this for a very long time, just for fun:)
+** Why do this? What's the purposes?
 
-** How to build and test
+This is the statistics result of my =~/.config/nvim= folder:
+
+#+BEGIN_SRC bash
+   I  wison | /home/wison/.config/nvim   tokei --sort lines --type lua ./
+  ===============================================================================
+   Language            Files        Lines         Code     Comments       Blanks
+  ===============================================================================
+   Lua                    49         6611         3655         2241          715
+  ===============================================================================
+   Total                  49         6611         3655         2241          715
+  ===============================================================================
+#+END_SRC
+
+As you can see that, I hand-wrote =3655= lines of =Lua= to configure my Neovim to what I want (of course, some of the custom plugins serve the same purpose with different implementations; that's my habit: build the same thing in a different way to iterate on the best solution).
+
+The custom plugin I wrote includes the following:
+
+- =Dired=: An Emacs major mode for directory browsing and editing, rewritten in Lua to use in Neovim.
+
+- =ProjectCommand=: A module to show a command list picker based on the current project scope. You can add or select a pre-filled command and run it to compile your project and run the binary; the result appears in a right-split terminal buffer window. If compilation fails, pressing ENTER on the error line will bring you to the source code.
+
+
+That said, I wrote a lot of Lua code just for an editor configuration:) That's fine for me, as I learned a lot from this process. 
+
+On the other hand, I also use =Emacs=, which is even more usecase than =Neovim=. That said, I hand-wrote a lot of =Emacs-Lisp= as well, here is the statistics result of my =~/.config/emcas= folder:
+
+
+#+BEGIN_SRC bash
+   N  wison | /home/wison/.config/emacs   tokei --sort lines --type "Emacs Lisp",Org
+  ===============================================================================
+   Language            Files        Lines         Code     Comments       Blanks
+  ===============================================================================
+   Emacs Lisp            589       198617       147625        26693        24299
+   Org                    12        32639        25968           99         6572
+  ===============================================================================
+   Total                 601       231256       173593        26792        30871
+  ===============================================================================
+#+END_SRC
+
+Both =Lua= and =Emacs Lisp= are NOT my perferred language IF I have a choice. I prefer to use my favourite system programming language to write all my configurations:
+
+=Odin, Hare, Zig, Rust, C=
+
+That's what this little project tries to do, and see how it goes:)
+
+
+** How it works?
+
+Neovim has a detailed C API that you call via FFI:
+
+- Source code: https://github.com/neovim/neovim/blob/release-0.11/src/nvim/api/
+
+- Docs: https://neovim.io/doc/user/api.html
+
+- Lua call FFI via dynamic-linked library: https://neovim.discourse.group/t/calling-neovim-internal-functions-with-luajit-ffi-and-rust/165
+
+
+So, basically, you have a few choices to write your configuration in your favourite system programming languages, depends on what you want.
+
+My first try is [[https://github.com/noib3/nvim-oxi][nvim-oxi]]: A neovim API rust bindings. After this, I will try to do the =Odin= version.
+
+
+** Rust version
+
+*** Project folder structure
+
+#+BEGIN_SRC bash
+  tree -L2
+  .
+  ├── build_release.sh     # Compile and copy to Neovim config directory (release build)
+  ├── build.sh             # Compile and copy to Neovim config directory (debug build)
+  ├── Cargo.lock
+  ├── Cargo.toml
+  ├── README.org
+  └── src
+      ├── lib.rs           # Pluging entry point
+      ├── settings.rs
+      ├── keybindings.rs
+      ├── auto_groups.rs
+      ├── my_dired.rs
+      └── utils.rs
+#+END_SRC
+
+
+*** How to build and test
 
 #+BEGIN_SRC fish
   #
@@ -27,7 +111,3 @@ Create =~/.config/nvim/my-init.lua= with the following setttings:
 #+BEGIN_SRC lua-ts
   require("my_neovim_configuration")
 #+END_SRC
-
-You should see the debug message:
-
-=>>> My Neovim Configuration has loaded successfully.=
