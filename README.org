@@ -217,7 +217,7 @@ For example:
 #+END_SRC
 
 
-**** COMMENT How to do keybindigs
+**** How to do keybindigs
 
 #+BEGIN_SRC rust
   use crate::utils::{
