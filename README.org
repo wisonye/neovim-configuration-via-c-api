@@ -111,3 +111,232 @@ Create =~/.config/nvim/my-init.lua= with the following setttings:
 #+BEGIN_SRC lua-ts
   require("my_neovim_configuration")
 #+END_SRC
+
+
+*** Detail explanation
+
+**** Plugin entry point
+
+#+BEGIN_SRC rust
+  #[nvim_oxi::plugin]
+  fn my_neovim_configuration() -> bool {
+
+      // This is your Neovim plugin entry point:)
+
+      true
+  }
+
+  #[cfg(feature = "enable_plugin_debug_print")]
+  use nvim_oxi as nvim;
+#+END_SRC
+
+
+~#[nvim_oxi::plugin]~ marks this function as the entrypoint of the plugin.
+
+The entry point function will be called by Neovim when the user loads the plugin by passing its name to the ~require~ function. It can return any type that implements the ~Pushable~ trait, and the value will be returned on the ~Lua~ side by require.
+
+The ~Pushable~ trait located in ~nvim-oxi/crates/luajit/src/pushable.rs~:
+
+#+BEGIN_SRC rust
+  /// Trait implemented for types that can be pushed onto the Lua stack.
+  pub trait Pushable {
+      /// Pushes all its values on the Lua stack, returning the number of values
+      /// that it pushed.
+      unsafe fn push(self, lstate: *mut State) -> Result<c_int, crate::Error>;
+  }
+
+  // Ignore another type's impl block targets to the `Pushable` trait...
+
+  impl Pushable for bool {
+      unsafe fn push(self, lstate: *mut State) -> Result<c_int, crate::Error> {
+          ffi::lua_pushboolean(lstate, self as _);
+          Ok(1)
+      }
+  }
+#+END_SRC
+
+
+=Very important!!!=
+
+=The entry point function name MUST be the same with your plugin name=, as the compiled library has the symbol name: ~_luaopen_YOUR_PLUGIN_ENTRYPOINT_FUNCTION_NAME~!!!
+
+For example:
+
+1. This plugin entrypoint function name: ~my_neovim_configuration~
+
+2. You need to copy/move the library file to your neovim configuration folder with the same name:
+
+#+BEGIN_SRC bash
+  mv target/release/libmy_neovim_configuration.dylib ~/.config/nvim/lua/my_neovim_configuration.so
+
+  #
+  # You can list the `luaopen` symbol name to confirm.
+  #
+  nm ~/.config/nvim/lua/my_neovim_configuration.so | rg luaopen
+  # 0000000000001080 T _luaopen_my_neovim_configuration
+#+END_SRC
+
+3. Load your plugin in Lua: ~require('my_neovim_configuration')~
+
+
+**** How to do settings
+
+#+BEGIN_SRC rust
+  use nvim_oxi as nvim;
+
+  use nvim::api::opts::{OptionOpts, OptionScope};
+  use nvim::api::set_option_value;
+
+  ///
+  ///
+  ///
+  pub fn setup() {
+      let opts = OptionOpts::builder().scope(OptionScope::Local).build();
+
+      //
+      // Call `set_option_value` API to do settigns
+      //
+      let _ = set_option_value("number", true, &opts);
+      let _ = set_option_value("relativenumber", true, &opts);
+      let _ = set_option_value("signcolumn", "yes", &opts);
+
+      // ...
+  }
+#+END_SRC
+
+
+**** How to set global variable like =vim.g=
+
+#+BEGIN_SRC rust
+  use nvim_oxi::api::{set_var};
+
+  //
+  // Set leader key to `space`: vim.g.mapleader = ' '
+  //
+  let _ = set_var("mapleader", " ");
+#+END_SRC
+
+
+**** COMMENT How to do keybindigs
+
+#+BEGIN_SRC rust
+  use crate::utils::{
+      kill_other_windows, open_centred_floating_terminal_window, toggle_spell_checking,
+  };
+
+  use nvim_oxi::api::{opts::SetKeymapOpts, set_keymap, set_var, types::Mode};
+
+
+  ///
+  ///
+  ///
+  pub fn setup() {
+      //
+      // Leader key: <Space>
+      //
+      let _ = set_keymap(
+          Mode::Normal,
+          "<Space>",
+          "<NOP>",
+          &SetKeymapOpts::builder().silent(true).build(),
+      );
+
+      let _ = set_var("mapleader", " ");
+
+      //
+      // Simple case that replaces the `lhs` to the `rhs`
+      //
+      let my_common_keybindings: Vec<(Mode, &str, &str, &str)> = vec![
+          // -----------------------------------------------------------------------------------
+          // Normal settings
+          // -----------------------------------------------------------------------------------
+          (Mode::Normal, "Y", "y$", "Copy to end of line"),
+          (Mode::Normal, "H", "^", "Move to begining of line"),
+          (Mode::Normal, "L", "$", "Move to end of line"),
+          (Mode::Normal, "W", ":w<CR>", "Save current buffer"),
+          (Mode::Normal, "Q", ":q<CR>", "Quit current buffer"),
+          (Mode::Insert, "jj", "<ESC>", "'jj': Escape from insert mode"),
+          (
+              Mode::Normal,
+              "<Tab>",
+              ":bn<CR>",
+              "'Tab': Switch to next buffer",
+          ),
+          (
+              Mode::Normal,
+              "<S-Tab>",
+              ":bp<CR>",
+              "'Shift + Tab': Switch to prev buffer",
+          ),
+          (
+              Mode::Normal,
+              "<Space><Space>",
+              "<c-^>",
+              "'<leader><leader>': Toggles between buffers",
+          ),
+
+      ];
+
+      //
+      // Call `set_keymap` API to set keybindings
+      //
+      for bindings in my_common_keybindings {
+          let _ = set_keymap(
+              bindings.0, // Mode
+              bindings.1, // lhs
+              bindings.2, // rhs
+              &SetKeymapOpts::builder()
+                  .desc(bindings.3) // Description
+                  .silent(true)     // No echo to command line
+                  .build(),
+          );
+      }
+
+
+      //
+      // What if you want to run closure via callback? Here is the example:
+      //
+      let my_keybindings_with_callback: Vec<(Mode, &str, &str, Box<dyn Fn()>)> = vec![
+          (
+              Mode::Normal,
+              "<leader>1",
+              "'<leader>1': Kill other windows.",
+              Box::new(|| {
+                  kill_other_windows();
+              }),
+          ),
+          (
+              Mode::Normal,
+              "<leader>sc",
+              "'<leader>sc': Toggle spell checking.",
+              Box::new(|| {
+                  toggle_spell_checking();
+              }),
+          ),
+          (
+              Mode::Normal,
+              "<leader>ft",
+              "'<leader>ft': Open a floating terminal.",
+              Box::new(|| {
+                  open_centred_floating_terminal_window();
+              }),
+          ),
+      ];
+
+      for bindings in my_keybindings_with_callback {
+          let _ = set_keymap(
+              bindings.0, // Mode
+              bindings.1, // lhs
+              "",         // rhs set to ""
+              &SetKeymapOpts::builder()
+                  .desc(bindings.2)     // Description
+                  .callback(move |_| {  // callback to call your closure
+                      bindings.3();     // Your closure here
+                      ()                // callback return value
+                  })
+                  .silent(true)
+                  .build(),
+          );
+      }
+  }
+#+END_SRC
