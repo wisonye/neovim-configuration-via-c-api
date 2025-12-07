@@ -8,6 +8,7 @@ crate-type = ["cdylib"]
 
 [features]
 # default = [ "enable_my_dired_debug_print" ]
+# default = [ "enable_auto_groups_debug_print" ]
 default = []
 
 # Plugin debug print: `src/lib.rs`
@@ -15,6 +16,9 @@ enable_plugin_debug_print = []
 
 # `my_dired` specified debug print: `src/my_dired.rs`
 enable_my_dired_debug_print = []
+
+# Auto group debug print: `src/auto_groups.rs`
+enable_auto_groups_debug_print = []
 
 [dependencies]
 nvim-oxi = { version = "0.6.0", features = ["neovim-0-11"] }

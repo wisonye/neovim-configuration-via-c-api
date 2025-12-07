@@ -42,9 +42,9 @@ pub fn setup() {
     let _ = set_var("mapleader", " ");
 
     let my_common_keybindings: Vec<(Mode, &str, &str, &str)> = vec![
-        // -----------------------------------------------------------------------------------,
+        // -----------------------------------------------------------------------------------
         // Normal settings
-        // -----------------------------------------------------------------------------------,
+        // -----------------------------------------------------------------------------------
         (Mode::Normal, "Y", "y$", "Copy to end of line"),
         (Mode::Normal, "H", "^", "Move to begining of line"),
         (Mode::Normal, "L", "$", "Move to end of line"),
@@ -283,7 +283,10 @@ pub fn setup() {
             bindings.0,
             bindings.1,
             bindings.2,
-            &SetKeymapOpts::builder().desc(bindings.3).build(),
+            &SetKeymapOpts::builder()
+                .desc(bindings.3)
+                .silent(true)
+                .build(),
         );
     }
 
@@ -325,6 +328,7 @@ pub fn setup() {
                     bindings.3();
                     ()
                 })
+                .silent(true)
                 .build(),
         );
     }
