@@ -16,5 +16,8 @@ rustflags = [
   "-C", "link-arg=dynamic_lookup",
 ]
 
+#
+# Release build compilation flags
+#
 [profile.release]
 strip = "symbols"
