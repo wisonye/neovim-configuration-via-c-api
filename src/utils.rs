@@ -1,6 +1,7 @@
 use nvim::api::{
-    Buffer, Window, cmd as vim_cmd, get_option_value, open_win, list_wins,
+    Buffer, Window, cmd as vim_cmd, get_option_value, list_wins, open_win,
     opts::{CmdOpts, OptionOpts, OptionScope},
+    set_option_value,
     types::{CmdInfos, WindowBorder, WindowConfig, WindowRelativeTo},
 };
 use nvim_oxi::{self as nvim};
@@ -75,4 +76,14 @@ pub fn kill_other_windows() {
             let _ = win.close(false);
         }
     }
+}
+
+///
+/// Toggle spell checking
+///
+pub fn toggle_spell_checking() {
+    let current_win = Window::current();
+    let opts = OptionOpts::builder().win(current_win).build();
+    let toggled_value = !get_option_value::<bool>("spell", &opts).unwrap();
+    let _ = set_option_value("spell", toggled_value, &opts);
 }

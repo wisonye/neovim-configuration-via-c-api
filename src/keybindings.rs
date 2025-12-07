@@ -1,12 +1,3 @@
-use crate::utils::{kill_other_windows, open_centred_floating_terminal_window};
-
-use nvim_oxi::api::{
-    Window, get_option_value,
-    opts::{OptionOpts, SetKeymapOpts},
-    set_keymap, set_option_value, set_var,
-    types::Mode,
-};
-
 //
 // pub enum Mode {
 //     #[serde(rename = "c")]
@@ -50,582 +41,297 @@ pub fn setup() {
 
     let _ = set_var("mapleader", " ");
 
-    // ------------------------------------------------------------------------------------
-    // Reload the current config
-    // ------------------------------------------------------------------------------------
-    let _ = set_keymap(
-        Mode::Normal,
-        "<leader>rr",
-        // ":luafile ~/.config/nvim/init.lua<CR>:setlocal nospell<CR>",
-        ":lua print(\">>> Reload configuration\")",
-        &SetKeymapOpts::builder()
-            .desc("Reload neovim config")
-            .build(),
-    );
+    let my_common_keybindings: Vec<(Mode, &str, &str, &str)> = vec![
+        // -----------------------------------------------------------------------------------,
+        // Normal settings
+        // -----------------------------------------------------------------------------------,
+        (Mode::Normal, "Y", "y$", "Copy to end of line"),
+        (Mode::Normal, "H", "^", "Move to begining of line"),
+        (Mode::Normal, "L", "$", "Move to end of line"),
+        (Mode::Normal, "W", ":w<CR>", "Save current buffer"),
+        (Mode::Normal, "Q", ":q<CR>", "Quit current buffer"),
+        (Mode::Insert, "jj", "<ESC>", "'jj': Escape from insert mode"),
+        (
+            Mode::Normal,
+            "<Tab>",
+            ":bn<CR>",
+            "'Tab': Switch to next buffer",
+        ),
+        (
+            Mode::Normal,
+            "<S-Tab>",
+            ":bp<CR>",
+            "'Shift + Tab': Switch to prev buffer",
+        ),
+        (
+            Mode::Normal,
+            "<Space><Space>",
+            "<c-^>",
+            "'<leader><leader>': Toggles between buffers",
+        ),
+        (
+            Mode::Normal,
+            "<Space>th",
+            ":%TOhtml<CR>",
+            "'<leader>th': To HTML",
+        ),
+        // ------------------------------------------------------------------------------------
+        // ctrl+s: replace all words under cursor.
+        // <c-r><c-w> to grab the word under cursor
+        // ------------------------------------------------------------------------------------
+        (
+            Mode::Normal,
+            "<c-s>",
+            ":%s/<C-r><C-w>//g<left><left>",
+            "'<C-s>': Replace all words under the cursor",
+        ),
+        // ------------------------------------------------------------------------------------
+        // Split & window movement
+        // ------------------------------------------------------------------------------------
 
-    // ------------------------------------------------------------------------------------
-    // Normal settings
-    // ------------------------------------------------------------------------------------
+        // Vertical; split
+        (Mode::Normal, "<leader>vs", ":vsplit<CR>", "Vertical split"),
+        // Move between windows
+        (
+            Mode::Normal,
+            "<leader>j",
+            ":wincmd j<CR>",
+            "Move to down window",
+        ),
+        (
+            Mode::Normal,
+            "<leader>k",
+            ":wincmd k<CR>",
+            "Move to up window",
+        ),
+        (
+            Mode::Normal,
+            "<C-h>",
+            ":wincmd h<CR>",
+            "Move to left window",
+        ),
+        (
+            Mode::Normal,
+            "<C-l>",
+            ":wincmd l<CR>",
+            "Move to right window",
+        ),
+        // Resize windows
+        (
+            Mode::Normal,
+            "-",
+            ":vertical resize -5<CR>",
+            "Decrease window size",
+        ),
+        (
+            Mode::Normal,
+            "=",
+            ":vertical resize +5<CR>",
+            "Increase window size",
+        ),
+        (Mode::Normal, "|", "<C-w>=", "Equal window size"),
+        // ------------------------------------------------------------------------------------
+        // Selections:
+        //
+        // shift+j: move selection down
+        // shift+k: move selection up
+        // <: left indent
+        // >: right indent
+        // ------------------------------------------------------------------------------------
+        (
+            Mode::VisualSelect,
+            "J",
+            ":m '>+1<CR>gv=gv",
+            "Move selection down",
+        ),
+        (
+            Mode::VisualSelect,
+            "K",
+            ":m '<-2<CR>gv=gv",
+            "Move selection up",
+        ),
+        // Space -> Newline: replace all spaces to newlines
+        (
+            Mode::VisualSelect,
+            "<leader>sn",
+            ":s/ /\\r/g<CR>",
+            "Space->Newline: replace all spaces to newlines",
+        ),
+        // Function Newline: replace all ', ' --> ',\r'"
+        (
+            Mode::VisualSelect,
+            "<leader>fn",
+            ":s/, /,\\r/g<CR>$F)i<CR><ESC>",
+            "Function->Newline: replace all ', ' --> ',\r'",
+        ),
+        // ------------------------------------------------------------------------------------
+        // Basic searching improvement
+        // ------------------------------------------------------------------------------------
+        (Mode::Normal, "<leader>n", ":nohl<CR>", "No highlight"),
+        (Mode::Normal, "n", "nzz", "Jump to next matching and center"),
+        (Mode::Normal, "N", "Nzz", "Jump to prev matching and center"),
+        // Snippets (suggestion list) select item up and down
+        (Mode::Insert, "<c-j>", "<c-n>", ""),
+        (Mode::Insert, "<c-k>", "<c-p>", ""),
+        (Mode::Normal, "<leader>oq", ":copen<CR>", "Open quick list"),
+        (
+            Mode::Normal,
+            "<leader>cq",
+            ":cclose<CR>",
+            "Close quick list",
+        ),
+        (
+            Mode::Normal,
+            "<leader>ol",
+            ":lopen<CR>",
+            "Open location list",
+        ),
+        (
+            Mode::Normal,
+            "<leader>cl",
+            ":lclose<CR>",
+            "Close location list",
+        ),
+        // Cycle through the quick fix list and center the current result line
+        (Mode::Normal, "<c-j>", ":cnext<CR>zz", ""),
+        (Mode::Normal, "<c-k>", ":cNext<CR>zz", ""),
+        // ------------------------------------------------------------------------------------
+        // Handy book marks
+        // ------------------------------------------------------------------------------------
 
-    // Y: Copy to the end of the line
-    let _ = set_keymap(
-        Mode::Normal,
-        "Y",
-        "y$",
-        &SetKeymapOpts::builder().desc("Copy to end of line").build(),
-    );
+        // `mm`: Make a gloabl mark
+        (Mode::Normal, "mm", "mM", "Mark current position"),
+        // `gb`: Go back to the global mark
+        (
+            Mode::Normal,
+            "gb",
+            "`Mzz",
+            "Go back to last marked position",
+        ),
+        // ------------------------------------------------------------------------------------
+        // Tab related
+        // ------------------------------------------------------------------------------------
+        (
+            Mode::Normal,
+            "<leader>to",
+            "<cmd>tabnew<CR>",
+            "Tab: open new tab",
+        ),
+        (
+            Mode::Normal,
+            "<leader>tc",
+            "<cmd>tabclose<CR>",
+            "Tab: close current tab",
+        ),
+        (
+            Mode::Normal,
+            "<leader>tn",
+            "<cmd>tabn<CR>",
+            "Tab: go to next tab",
+        ),
+        (
+            Mode::Normal,
+            "<leader>tp",
+            "<cmd>tabp<CR>",
+            "Tab: go to prev tab",
+        ),
+        (
+            Mode::Normal,
+            "<leader>tb",
+            "<cmd>tabnew %<CR>",
+            "Tab: open current buffer in new tab",
+        ),
+        // ------------------------------------------------------------------------------------
+        // Terminal related
+        // ------------------------------------------------------------------------------------
+        (
+            Mode::Normal,
+            "<leader>ot",
+            ":vsplit<CR>:terminal<CR>",
+            "Terminal: open terminal",
+        ),
+        (
+            Mode::Terminal,
+            "<ESC>",
+            "<C-\\><C-n>",
+            "Terminal: Press `<ESC>` to back to normal mode",
+        ),
+        (
+            Mode::Terminal,
+            "<C-h>",
+            "<C-\\><C-n><C-w>h",
+            "Terminal: Press `<C-h>` to go back to the left window",
+        ),
+        // ------------------------------------------------------------------------------------
+        // Command line related
+        // ------------------------------------------------------------------------------------
+        (Mode::CmdLine, "<C-j>", "<Down>", "Next history command"),
+        (Mode::CmdLine, "<C-k>", "<Up>", "Previous history command"),
+        // ------------------------------------------------------------------------------------
+        // Evacuate/run the selected lua code
+        // ------------------------------------------------------------------------------------
+        (
+            Mode::VisualSelect,
+            "<leader>ee",
+            ":'<,'>lua<CR>",
+            "Evaluate selected lua code",
+        ),
+    ];
 
-    //
-    // H and L instead of '^' and '$'
-    //
-    let _ = set_keymap(
-        Mode::Normal,
-        "H",
-        "^",
-        &SetKeymapOpts::builder()
-            .desc("Move to begining of line")
-            .build(),
-    );
+    for bindings in my_common_keybindings {
+        let _ = set_keymap(
+            bindings.0,
+            bindings.1,
+            bindings.2,
+            &SetKeymapOpts::builder().desc(bindings.3).build(),
+        );
+    }
 
-    let _ = set_keymap(
-        Mode::Normal,
-        "L",
-        "$",
-        &SetKeymapOpts::builder().desc("Move to end of line").build(),
-    );
-
-    //
-    // W: save, Q: quit
-    //
-    let _ = set_keymap(
-        Mode::Normal,
-        "W",
-        ":w<CR>",
-        &SetKeymapOpts::builder().desc("Save current buffer").build(),
-    );
-    let _ = set_keymap(
-        Mode::Normal,
-        "Q",
-        ":q<CR>",
-        &SetKeymapOpts::builder().desc("Quit current buffer").build(),
-    );
-
-    // jj: <ESC> from `insert` mode
-    let _ = set_keymap(
-        Mode::Insert,
-        "jj",
-        "<ESC>",
-        &SetKeymapOpts::builder().build(),
-    );
-
-    //
-    // <Tab> and shift+<Tab> to cycle through the opened buffers
-    //
-    let _ = set_keymap(
-        Mode::Normal,
-        "<Tab>",
-        ":bn<CR>",
-        &SetKeymapOpts::builder()
-            .desc("Switch to next buffer")
-            .build(),
-    );
-
-    let _ = set_keymap(
-        Mode::Normal,
-        "<S-Tab>",
-        ":bp<CR>",
-        &SetKeymapOpts::builder()
-            .desc("Switch to prev buffer")
-            .build(),
-    );
-
-    // <leader><leader>: toggles between buffers
-    let _ = set_keymap(
-        Mode::Normal,
-        "<Space><Space>",
-        "<c-^>",
-        &SetKeymapOpts::builder()
-            .desc("Swith between last and current buffer")
-            .build(),
-    );
-
-    //  <leader>th: save current file to HTML
-    let _ = set_keymap(
-        Mode::Normal,
-        "<Space>th",
-        ":%TOhtml<CR>",
-        &SetKeymapOpts::builder().desc("Save as HTML").build(),
-    );
-
-    // ------------------------------------------------------------------------------------
-    // ctrl+s: replace all words under cursor.
-    // <c-r><c-w> to grab the word under cursor
-    // ------------------------------------------------------------------------------------
-    let _ = set_keymap(
-        Mode::Normal,
-        "<c-s>",
-        ":%s/<C-r><C-w>//g<left><left>",
-        &SetKeymapOpts::builder()
-            .desc("Replace all words under the cursor")
-            .build(),
-    );
-
-    // ------------------------------------------------------------------------------------
-    // Split & window movement
-    // ------------------------------------------------------------------------------------
-
-    // Vertical; split
-    let _ = set_keymap(
-        Mode::Normal,
-        "<leader>vs",
-        ":vsplit<CR>",
-        &SetKeymapOpts::builder()
-            .desc("Vertical split")
-            .silent(true)
-            .build(),
-    );
-
-    // Move between windows
-    let _ = set_keymap(
-        Mode::Normal,
-        "<leader>j",
-        ":wincmd j<CR>",
-        &SetKeymapOpts::builder()
-            .desc("Move to down window")
-            .silent(true)
-            .build(),
-    );
-
-    let _ = set_keymap(
-        Mode::Normal,
-        "<leader>k",
-        ":wincmd k<CR>",
-        &SetKeymapOpts::builder()
-            .desc("Move to up window")
-            .silent(true)
-            .build(),
-    );
-
-    let _ = set_keymap(
-        Mode::Normal,
-        "<C-h>",
-        ":wincmd h<CR>",
-        &SetKeymapOpts::builder()
-            .desc("Move to left window")
-            .silent(true)
-            .build(),
-    );
-
-    let _ = set_keymap(
-        Mode::Normal,
-        "<C-l>",
-        ":wincmd l<CR>",
-        &SetKeymapOpts::builder()
-            .desc("Move to right window")
-            .silent(true)
-            .build(),
-    );
-
-    // Resize windows
-    let _ = set_keymap(
-        Mode::Normal,
-        "-",
-        ":vertical resize -5<CR>",
-        &SetKeymapOpts::builder()
-            .desc("Decrease window size")
-            .silent(true)
-            .build(),
-    );
-    let _ = set_keymap(
-        Mode::Normal,
-        "=",
-        ":vertical resize +5<CR>",
-        &SetKeymapOpts::builder()
-            .desc("Increase window size")
-            .silent(true)
-            .build(),
-    );
-    let _ = set_keymap(
-        Mode::Normal,
-        "|",
-        "<C-w>=",
-        &SetKeymapOpts::builder()
-            .desc("Equal window size")
-            .silent(true)
-            .build(),
-    );
-
-    // ------------------------------------------------------------------------------------
-    // Selections:
-    //
-    // shift+j: move selection down
-    // shift+k: move selection up
-    // <: left indent
-    // >: right indent
-    // ------------------------------------------------------------------------------------
-    let _ = set_keymap(
-        Mode::VisualSelect,
-        "J",
-        ":m '>+1<CR>gv=gv",
-        &SetKeymapOpts::builder()
-            .desc("Move selection down")
-            .silent(true)
-            .build(),
-    );
-    let _ = set_keymap(
-        Mode::VisualSelect,
-        "K",
-        ":m '<-2<CR>gv=gv",
-        &SetKeymapOpts::builder()
-            .desc("Move selection up")
-            .silent(true)
-            .build(),
-    );
-    // let _ = set_keymap(Mode::VisualSelect,
-    //     "<",
-    //     "<gv",
-    //     &SetKeymapOpts::builder().desc("Left indent selections").silent(true).build(),
-    // );
-    // let _ = set_keymap(Mode::VisualSelect,
-    //     ">",
-    //     ">gv",
-    //     &SetKeymapOpts::builder().desc("Right indent selections").silent(true).build(),
-    // );
-
-    // Space -> Newline: replace all spaces to newlines
-    let _ = set_keymap(
-        Mode::VisualSelect,
-        "<leader>sn",
-        ":s/ /\\r/g<CR>",
-        &SetKeymapOpts::builder()
-            .desc("Space->Newline: replace all spaces to newlines")
-            .silent(true)
-            .build(),
-    );
-
-    // Function Newline: replace all ', ' --> ',\r'"
-    let _ = set_keymap(
-        Mode::VisualSelect,
-        "<leader>fn",
-        ":s/, /,\\r/g<CR>$F)i<CR><ESC>",
-        &SetKeymapOpts::builder()
-            .desc("Function->Newline: replace all ', ' --> ',\r'")
-            .silent(true)
-            .build(),
-    );
-
-    // ------------------------------------------------------------------------------------
-    // Basic searching improvement
-    // ------------------------------------------------------------------------------------
-
-    let _ = set_keymap(
-        Mode::Normal,
-        "<leader>n",
-        ":nohl<CR>",
-        &SetKeymapOpts::builder()
-            .desc("No highlight")
-            .silent(true)
-            .build(),
-    );
-
-    let _ = set_keymap(
-        Mode::Normal,
-        "n",
-        "nzz",
-        &SetKeymapOpts::builder()
-            .desc("Jump to next matching and center")
-            .silent(true)
-            .build(),
-    );
-
-    let _ = set_keymap(
-        Mode::Normal,
-        "N",
-        "Nzz",
-        &SetKeymapOpts::builder()
-            .desc("Jump to prev matching and center")
-            .silent(true)
-            .build(),
-    );
-
-    // Snippets (suggestion list) select item up and down
-    let _ = set_keymap(
-        Mode::Insert,
-        "<c-j>",
-        "<c-n>",
-        &SetKeymapOpts::builder().silent(true).build(),
-    );
-    let _ = set_keymap(
-        Mode::Insert,
-        "<c-k>",
-        "<c-p>",
-        &SetKeymapOpts::builder().silent(true).build(),
-    );
-
-    let _ = set_keymap(
-        Mode::Normal,
-        "<leader>oq",
-        ":copen<CR>",
-        &SetKeymapOpts::builder()
-            .desc("Open quick list")
-            .silent(true)
-            .build(),
-    );
-    let _ = set_keymap(
-        Mode::Normal,
-        "<leader>cq",
-        ":cclose<CR>",
-        &SetKeymapOpts::builder()
-            .desc("Close quick list")
-            .silent(true)
-            .build(),
-    );
-
-    let _ = set_keymap(
-        Mode::Normal,
-        "<leader>ol",
-        ":lopen<CR>",
-        &SetKeymapOpts::builder()
-            .desc("Open location list")
-            .silent(true)
-            .build(),
-    );
-    let _ = set_keymap(
-        Mode::Normal,
-        "<leader>cl",
-        ":lclose<CR>",
-        &SetKeymapOpts::builder()
-            .desc("Close location list")
-            .silent(true)
-            .build(),
-    );
-
-    // Cycle through the quick fix list and center the current result line
-    let _ = set_keymap(
-        Mode::Normal,
-        "<c-j>",
-        ":cnext<CR>zz",
-        &SetKeymapOpts::builder().silent(true).build(),
-    );
-    let _ = set_keymap(
-        Mode::Normal,
-        "<c-k>",
-        ":cNext<CR>zz",
-        &SetKeymapOpts::builder().silent(true).build(),
-    );
-
-    // ------------------------------------------------------------------------------------
-    // <leader>sc: Toggle spell checking
-    // ------------------------------------------------------------------------------------
-    let _ = set_keymap(
-        Mode::Normal,
-        "<leader>sc",
-        "",
-        &SetKeymapOpts::builder()
-            .desc("Toggle spell check")
-            .callback(|_| {
-                let current_win = Window::current();
-                let opts = OptionOpts::builder().win(current_win).build();
-                let toggled_value = !get_option_value::<bool>("spell", &opts).unwrap();
-                let _ = set_option_value("spell", toggled_value, &opts);
-                ()
-            })
-            .build(),
-    );
-
-    // ------------------------------------------------------------------------------------
-    // Handy book marks
-    // ------------------------------------------------------------------------------------
-
-    // `mm`: Make a gloabl mark
-    let _ = set_keymap(
-        Mode::Normal,
-        "mm",
-        "mM",
-        &SetKeymapOpts::builder()
-            .desc("Mark current position")
-            .silent(true)
-            .build(),
-    );
-    // `gb`: Go back to the global mark
-    let _ = set_keymap(
-        Mode::Normal,
-        "gb",
-        "`Mzz",
-        &SetKeymapOpts::builder()
-            .desc("Go back to last marked position")
-            .silent(true)
-            .build(),
-    );
-
-    // ------------------------------------------------------------------------------------
-    // Tab related
-    // ------------------------------------------------------------------------------------
-    let _ = set_keymap(
-        Mode::Normal,
-        "<leader>to",
-        "<cmd>tabnew<CR>",
-        &SetKeymapOpts::builder()
-            .desc("Tab: open new tab")
-            .silent(true)
-            .build(),
-    );
-    let _ = set_keymap(
-        Mode::Normal,
-        "<leader>tc",
-        "<cmd>tabclose<CR>",
-        &SetKeymapOpts::builder()
-            .desc("Tab: close current tab")
-            .silent(true)
-            .build(),
-    );
-    let _ = set_keymap(
-        Mode::Normal,
-        "<leader>tn",
-        "<cmd>tabn<CR>",
-        &SetKeymapOpts::builder()
-            .desc("Tab: go to next tab")
-            .silent(true)
-            .build(),
-    );
-    let _ = set_keymap(
-        Mode::Normal,
-        "<leader>tp",
-        "<cmd>tabp<CR>",
-        &SetKeymapOpts::builder()
-            .desc("Tab: go to prev tab")
-            .silent(true)
-            .build(),
-    );
-    let _ = set_keymap(
-        Mode::Normal,
-        "<leader>tb",
-        "<cmd>tabnew %<CR>",
-        &SetKeymapOpts::builder()
-            .desc("Tab: open current buffer in new tab")
-            .silent(true)
-            .build(),
-    );
-
-    // ------------------------------------------------------------------------------------
-    // Terminal related
-    // ------------------------------------------------------------------------------------
-    let _ = set_keymap(
-        Mode::Normal,
-        "<leader>ot",
-        ":vsplit<CR>:terminal<CR>",
-        &SetKeymapOpts::builder()
-            .desc("Terminal: open terminal")
-            .silent(true)
-            .build(),
-    );
-
-    let _ = set_keymap(
-        Mode::Terminal,
-        "<ESC>",
-        "<C-\\><C-n>",
-        &SetKeymapOpts::builder()
-            .desc("Terminal: Press `<ESC>` to back to normal mode")
-            .silent(true)
-            .build(),
-    );
-
-    let _ = set_keymap(
-        Mode::Terminal,
-        "<C-h>",
-        "<C-\\><C-n><C-w>h",
-        &SetKeymapOpts::builder()
-            .desc("Terminal: Press `<C-h>` to go back to the left window")
-            .silent(true)
-            .build(),
-    );
-
-    let _ = set_keymap(
-        Mode::Normal,
-        "<leader>ft",
-        "",
-        &SetKeymapOpts::builder()
-            .desc("Terminal: open a floating terminal")
-            .silent(true)
-            .callback(|_| {
-                open_centred_floating_terminal_window();
-                ();
-            })
-            .build(),
-    );
-
-    // ------------------------------------------------------------------------------------
-    // Command line related
-    // ------------------------------------------------------------------------------------
-    let _ = set_keymap(
-        Mode::CmdLine,
-        "<C-j>",
-        "<Down>",
-        &SetKeymapOpts::builder()
-            .desc("Next history command")
-            .build(),
-    );
-
-    let _ = set_keymap(
-        Mode::CmdLine,
-        "<C-k>",
-        "<Up>",
-        &SetKeymapOpts::builder()
-            .desc("Previous history command")
-            .build(),
-    );
-
-    // ------------------------------------------------------------------------------------
-    // Evacuate/run the selected lua code
-    // ------------------------------------------------------------------------------------
-    let _ = set_keymap(
-        Mode::VisualSelect,
-        "<leader>ee",
-        ":'<,'>lua<CR>",
-        &SetKeymapOpts::builder()
-            .desc("Evaluate selected lua code")
-            .silent(true)
-            .build(),
-    );
-
-    // ------------------------------------------------------------------------------------
-    // 'my_utils' plugin lazy load
-    // ------------------------------------------------------------------------------------
-    let _ = set_keymap(
-        Mode::Normal,
-        "<leader>1",
-        "",
-        &SetKeymapOpts::builder()
-            .desc("Kill other windows.")
-            .silent(true)
-            .callback(|_|{
+    let my_keybindings_with_callback: Vec<(Mode, &str, &str, Box<dyn Fn()>)> = vec![
+        (
+            Mode::Normal,
+            "<leader>1",
+            "'<leader>1': Kill other windows.",
+            Box::new(|| {
                 kill_other_windows();
-                ()
-            })
-            .build(),
-    );
+            }),
+        ),
+        (
+            Mode::Normal,
+            "<leader>sc",
+            "'<leader>sc': Toggle spell checking.",
+            Box::new(|| {
+                toggle_spell_checking();
+            }),
+        ),
+        (
+            Mode::Normal,
+            "<leader>ft",
+            "'<leader>ft': Open a floating terminal.",
+            Box::new(|| {
+                open_centred_floating_terminal_window();
+            }),
+        ),
+    ];
 
-    // // ------------------------------------------------------------------------------------
-    // // 'my_project_command' plugin lazy load
-    // // ------------------------------------------------------------------------------------
-    // local run_project_command_plugin = function()
-    //     -- require('my_project_command_telescope').run({
-    //     --     open_source_on_left_split_win = true,
-    //     --     -- enable_script_files = true,
-    //     -- })
-
-    //     require('my_project_command_fzf_lua').run({
-    //         open_source_on_left_split_win = true,
-    //         enable_script_files = true,
-    //     })
-    // end
-
-    // let _ = set_keymap('n',
-    //     '<leader>pc',
-    //     run_project_command_plugin,
-    //     {
-    //         silent = true,
-    //         desc = "Project command"
-    //     }
-    // )
+    for bindings in my_keybindings_with_callback {
+        let _ = set_keymap(
+            bindings.0,
+            bindings.1,
+            "",
+            &SetKeymapOpts::builder()
+                .desc(bindings.2)
+                .callback(move |_| {
+                    bindings.3();
+                    ()
+                })
+                .build(),
+        );
+    }
 }
+
+use crate::utils::{
+    kill_other_windows, open_centred_floating_terminal_window, toggle_spell_checking,
+};
+
+use nvim_oxi::api::{opts::SetKeymapOpts, set_keymap, set_var, types::Mode};
