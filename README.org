@@ -2,20 +2,20 @@
 
 ** Why do this? What's the purposes?
 
-This is the statistics result of my =~/.config/nvim= folder:
+This is the statistics result of my =/backup/nvim_lua= folder:
 
 #+BEGIN_SRC bash
-   I  wison | /home/wison/.config/nvim   tokei --sort lines --type lua ./
+   I  wison | /backup/nvim_lua   tokei --sort lines --type lua ./
   ===============================================================================
    Language            Files        Lines         Code     Comments       Blanks
   ===============================================================================
-   Lua                    49         6611         3655         2241          715
+   Lua                    43         6332         3384         2233          715
   ===============================================================================
-   Total                  49         6611         3655         2241          715
+   Total                  43         6332         3384         2233          715
   ===============================================================================
 #+END_SRC
 
-As you can see that, I hand-wrote =3655= lines of =Lua= to configure my Neovim to what I want (of course, some of the custom plugins serve the same purpose with different implementations; that's my habit: build the same thing in a different way to iterate on the best solution).
+As you can see that, I hand-wrote =3384= lines of =Lua= to configure my Neovim to what I want (of course, some of the custom plugins serve the same purpose with different implementations; that's my habit: build the same thing in a different way to iterate on the best solution).
 
 The custom plugin I wrote includes the following:
 
@@ -26,18 +26,18 @@ The custom plugin I wrote includes the following:
 
 That said, I wrote a lot of Lua code just for an editor configuration:) That's fine for me, as I learned a lot from this process. 
 
-On the other hand, I also use =Emacs=, which is even more usecase than =Neovim=. That said, I hand-wrote a lot of =Emacs-Lisp= as well, here is the statistics result of my =~/.config/emcas= folder:
+On the other hand, I also use =Emacs=, which is even more usecase than =Neovim=. That said, I hand-wrote a lot of =Emacs-Lisp= as well, here is the statistics result of my =/backup/emacs= folder:
 
 
 #+BEGIN_SRC bash
-   N  wison | /home/wison/.config/emacs   tokei --sort lines --type "Emacs Lisp",Org
+   N  wison | /backup/emacs   tokei --sort lines --type "Emacs Lisp",Org
   ===============================================================================
    Language            Files        Lines         Code     Comments       Blanks
   ===============================================================================
-   Emacs Lisp            589       198617       147625        26693        24299
-   Org                    12        32639        25968           99         6572
+   Org                     3        12891        10000           86         2805
+   Emacs Lisp              6         7232         4058         2304          870
   ===============================================================================
-   Total                 601       231256       173593        26792        30871
+   Total                   9        20123        14058         2390         3675
   ===============================================================================
 #+END_SRC
 
