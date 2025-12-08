@@ -20,6 +20,9 @@ enable_my_dired_debug_print = []
 # Auto group debug print: `src/auto_groups.rs`
 enable_auto_groups_debug_print = []
 
+# Picker specified debug print: `src/picker`
+enable_picker_debug_print = []
+
 [dependencies]
 nvim-oxi = { version = "0.6.0", features = ["neovim-0-11"] }
 # nvim-oxi = { path = "../nvim-oxi", features = ["neovim-0-11"] }

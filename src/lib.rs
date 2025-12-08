@@ -67,3 +67,4 @@ mod settings;
 mod keybindings;
 mod my_dired;
 mod auto_groups;
+mod picker;
