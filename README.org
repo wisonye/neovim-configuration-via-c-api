@@ -88,6 +88,10 @@ My first try is [[https://github.com/noib3/nvim-oxi][nvim-oxi]]: A neovim API ru
 
 *** How to build and test
 
+Run =build.sh= (debug build) or =build_release.sh= (release build) script: it compiles this plugin and copy the dynamic-linked library to =~/.config/nvim/lua=.
+
+Both =build.sh= and =build_release.sh= are written in =fish shell= script. If you're using another shell, then you can compile and do a copy manually like this:
+
 #+BEGIN_SRC fish
   #
   # Release build
@@ -106,7 +110,7 @@ My first try is [[https://github.com/noib3/nvim-oxi][nvim-oxi]]: A neovim API ru
 #+END_SRC
 
 
-Create =~/.config/nvim/my-init.lua= with the following setttings:
+Finally, create =~/.config/nvim/my-init.lua= (or modify your own =init.lua=) with the following setttings to load the plugin:
 
 #+BEGIN_SRC lua-ts
   require("my_neovim_configuration")
