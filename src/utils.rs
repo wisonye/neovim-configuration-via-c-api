@@ -2,7 +2,7 @@
 ///
 ///
 pub fn open_centred_floating_terminal_window() {
-    let _ = create_popup_window(PopupWindowOptions {
+    let _ = create_popup_window(&PopupWindowOptions {
         border: WindowBorder::Rounded,
         window_width_ratio: Some(0.7),
         window_height_ratio: Some(0.7),

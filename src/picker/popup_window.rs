@@ -1,6 +1,10 @@
+const POPUP_WINDOW_AUTO_WIDTH_PADDING_EACH_SIDE: u32 = 2;
+// const POPUP_WINDOW_AUTO_WIDTH_PADDING_EACH_SIDE: u32 = 4;
+
 ///
 ///
 ///
+#[derive(Debug)]
 pub struct PopupWindowOptions {
     pub border: WindowBorder,
     pub window_width_ratio: Option<f32>,  // Default is `0.5`
@@ -33,7 +37,13 @@ pub fn get_screen_size() -> ScreenSize {
 ///
 /// Create a popup window witht the given buffer
 ///
-pub fn create_popup_window(opts: PopupWindowOptions) -> Option<i32> {
+pub fn create_popup_window(opts: &PopupWindowOptions) -> Option<i32> {
+    #[cfg(feature = "enable_picker_debug_print")]
+    const LOGGER_PREFIX: &'static str = "[ picker - create_popup_window ]";
+
+    #[cfg(feature = "enable_picker_debug_print")]
+    nvim::print!("\n>>> {LOGGER_PREFIX} opts: {opts:#?}");
+
     let screen_size = get_screen_size();
 
     // Calculate popup window width and height
@@ -45,8 +55,70 @@ pub fn create_popup_window(opts: PopupWindowOptions) -> Option<i32> {
         Some(h_ratio) => h_ratio,
         None => 0.5f32,
     };
-    let width = ((screen_size.width as f32) * default_width_ratio).floor();
-    let height = ((screen_size.height as f32) * default_height_ratio).floor();
+    let mut width = ((screen_size.width as f32) * default_width_ratio).floor();
+    let mut height = ((screen_size.height as f32) * default_height_ratio).floor();
+
+    //
+    // Auto width logic
+    //
+    if opts.auto_width && opts.window_width_ratio.is_none() {
+        let window_buffer = match opts.buffer {
+            Some(handle) => &Buffer::from(handle),
+            _ => &Buffer::current(),
+        };
+
+        #[cfg(feature = "enable_picker_debug_print")]
+        nvim::print!(
+            "\n>>> {LOGGER_PREFIX} auto_width case, buffer id: {}",
+            window_buffer.handle()
+        );
+
+        // Loop through all lines to find the longest one
+        let mut max_cols = 0;
+        if let Ok(lines) = window_buffer.get_lines(.., true) {
+            for line in lines {
+                if line.len() > max_cols {
+                    max_cols = line.len();
+                }
+            }
+
+            #[cfg(feature = "enable_picker_debug_print")]
+            nvim::print!("\n>>> {LOGGER_PREFIX} max_cols: {max_cols}");
+
+            if max_cols > 0 {
+                let both_padding = (POPUP_WINDOW_AUTO_WIDTH_PADDING_EACH_SIDE * 2) as f32;
+                width = (max_cols as f32 + both_padding) as f32;
+            }
+        }
+    }
+
+    //
+    // Auto height logic
+    //
+    if opts.auto_height && opts.window_height_ratio.is_none() {
+        let window_buffer = match opts.buffer {
+            Some(handle) => &Buffer::from(handle),
+            None => &Buffer::current(),
+        };
+
+        #[cfg(feature = "enable_picker_debug_print")]
+        nvim::print!(
+            "\n>>> {LOGGER_PREFIX} auto_height case, buffer id: {}",
+            window_buffer.handle()
+        );
+
+        if let Ok(lines) = window_buffer.get_lines(.., true) {
+            if lines.len() > 0 {
+                height = lines.len() as f32;
+
+                #[cfg(feature = "enable_picker_debug_print")]
+                nvim::print!("\n>>> {LOGGER_PREFIX} max_rows: {height}");
+            }
+        }
+    }
+
+    #[cfg(feature = "enable_picker_debug_print")]
+    nvim::print!("\n>>> {LOGGER_PREFIX} width: {width}, height: {height}");
 
     // Center window in `editor` area by calculating the (left, top)
     let cols = (((screen_size.width as f32 - width) / 2f32).floor()) as u32;
@@ -80,7 +152,7 @@ pub fn create_popup_window(opts: PopupWindowOptions) -> Option<i32> {
         .height(height as u32)
         .row(rows)
         .col(cols)
-        .border(WindowBorder::Rounded)
+        .border(opts.border.clone())
         .build();
 
     let window_buffer = match opts.buffer {
@@ -88,9 +160,22 @@ pub fn create_popup_window(opts: PopupWindowOptions) -> Option<i32> {
         None => &Buffer::current(),
     };
 
-    match open_win(&window_buffer, enter_into_window, &open_win_config) {
-        Ok(win) => Some(win.handle()),
-        Err(_) => None,
+    let popup_window_result = open_win(&window_buffer, enter_into_window, &open_win_config);
+
+    match popup_window_result {
+        Ok(win) => {
+            let popup_win_opts = OptionOpts::builder().win(win.clone()).build();
+
+            // Add window left padding
+            let _ = set_option_value(
+                "foldcolumn",
+                POPUP_WINDOW_AUTO_WIDTH_PADDING_EACH_SIDE.to_string(),
+                &popup_win_opts,
+            );
+            return Some(win.handle());
+        }
+
+        Err(_) => return None,
     }
 }
 
@@ -100,9 +185,9 @@ use nvim_oxi as nvim;
 use nvim::{
     BufHandle,
     api::{
-        Buffer, Window, cmd as vim_cmd, get_option_value, list_wins, open_win,
-        opts::{CmdOpts, OptionOpts, OptionScope},
+        Buffer, get_option_value, open_win,
+        opts::{OptionOpts, OptionScope},
         set_option_value,
-        types::{CmdInfos, WindowBorder, WindowConfig, WindowRelativeTo},
+        types::{WindowBorder, WindowConfig, WindowRelativeTo},
     },
 };

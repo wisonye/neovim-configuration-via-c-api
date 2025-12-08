@@ -1,6 +1,7 @@
 ///
 /// Picker options
 ///
+#[derive(Debug)]
 pub struct PickerOptions {
     window_opts: PopupWindowOptions,
     list: Vec<String>,
@@ -10,14 +11,14 @@ pub struct PickerOptions {
 /// Create picker with the given list
 ///
 fn create_picker_with_options<F>(
-    opts: PickerOptions,
+    opts: &mut PickerOptions,
     mut selected_callback: F,
 ) -> Result<(), NvimError>
 where
     F: FnMut(BufHandle, WinHandle) + Clone + 'static,
 {
     #[cfg(feature = "enable_picker_debug_print")]
-    const LOGGER_PREFIX: &'static str = "[ my_dired - create_picker_with_options<F>]";
+    const LOGGER_PREFIX: &'static str = "[ picker - create_picker_with_options<F> ]";
 
     //
     // Create internal buffer with the following options:
@@ -29,6 +30,9 @@ where
     //
     let mut picker_buffer = create_buf(false, false)?;
     let picker_buffer_id = picker_buffer.handle();
+
+    #[cfg(feature = "enable_picker_debug_print")]
+    nvim::print!("\n>>> {LOGGER_PREFIX} picker_buffer_id: {picker_buffer_id:#?}");
 
     let buffer_opts = OptionOpts::builder().buffer(picker_buffer.clone()).build();
     let _ = set_option_value("number", false, &buffer_opts);
@@ -51,7 +55,8 @@ where
     // 0..  - The range of first line to the last line
     // ..   - The range of all lines
     //
-    let _ = picker_buffer.set_lines(.., true, opts.list)?;
+    let content = opts.list.iter().map(|v| v.as_str()).collect::<Vec<&str>>();
+    let _ = picker_buffer.set_lines(.., true, content)?;
 
     //
     // Not allow to modify after adding content
@@ -100,14 +105,8 @@ where
     //
     // Open the picker window
     //
-    if let Some(win_handle) = create_popup_window(PopupWindowOptions {
-        border: WindowBorder::Rounded,
-        window_width_ratio: Some(0.7),
-        window_height_ratio: Some(0.7),
-        auto_width: false,
-        auto_height: false,
-        buffer: Some(picker_buffer.handle()),
-    }) {
+    opts.window_opts.buffer = Some(picker_buffer_id);
+    if let Some(win_handle) = create_popup_window(&opts.window_opts) {
         let current_window = Window::from(win_handle);
         //
         // Disable default window option:
@@ -138,16 +137,18 @@ where
 ///
 fn run_test_picker() {
     #[cfg(feature = "enable_picker_debug_print")]
-    const LOGGER_PREFIX: &'static str = "[ my_dired - run_test_picker ]";
+    const LOGGER_PREFIX: &'static str = "[ picker - run_test_picker ]";
 
     let result = create_picker_with_options(
-        PickerOptions {
+        &mut PickerOptions {
             window_opts: PopupWindowOptions {
                 border: WindowBorder::Rounded,
-                window_width_ratio: Some(0.7),
-                window_height_ratio: Some(0.7),
-                auto_width: false,
-                auto_height: false,
+                // window_width_ratio: Some(0.7),
+                // window_height_ratio: Some(0.7),
+                window_width_ratio: None,
+                window_height_ratio: None,
+                auto_width: true,
+                auto_height: true,
                 buffer: None,
             },
             list: vec![
@@ -207,11 +208,10 @@ use crate::picker::{PopupWindowOptions, create_popup_window};
 use nvim::{
     BufHandle, WinHandle,
     api::{
-        Buffer, Error as NvimError, Window, cmd as vim_cmd, create_buf, get_current_line,
-        get_option_value, list_wins, open_win,
-        opts::{CmdOpts, OptionOpts, SetKeymapOpts},
+        Error as NvimError, Window, create_buf, get_current_line,
+        opts::{OptionOpts, SetKeymapOpts},
         set_keymap, set_option_value,
-        types::{CmdInfos, Mode, WindowBorder},
+        types::{Mode, WindowBorder},
     },
 };
 
