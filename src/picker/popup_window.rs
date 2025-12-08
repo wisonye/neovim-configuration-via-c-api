@@ -7,6 +7,7 @@ pub struct PopupWindowOptions {
     pub window_height_ratio: Option<f32>, // Default is `0.5`
     pub auto_width: bool,                 // Only works when `window_width_ratio` is `None`
     pub auto_height: bool,                // Only works when `window_height_ratio` is `None`
+    pub buffer: Option<BufHandle>,
 }
 
 ///
@@ -82,7 +83,12 @@ pub fn create_popup_window(opts: PopupWindowOptions) -> Option<i32> {
         .border(WindowBorder::Rounded)
         .build();
 
-    match open_win(&Buffer::current(), enter_into_window, &open_win_config) {
+    let window_buffer = match opts.buffer {
+        Some(handle) => &Buffer::from(handle),
+        None => &Buffer::current(),
+    };
+
+    match open_win(&window_buffer, enter_into_window, &open_win_config) {
         Ok(win) => Some(win.handle()),
         Err(_) => None,
     }
@@ -91,10 +97,12 @@ pub fn create_popup_window(opts: PopupWindowOptions) -> Option<i32> {
 #[cfg(feature = "enable_picker_debug_print")]
 use nvim_oxi as nvim;
 
-use nvim::api::{
-    Buffer, Window, cmd as vim_cmd, get_option_value, list_wins, open_win,
-    opts::{CmdOpts, OptionOpts, OptionScope},
-    set_option_value,
-    types::{CmdInfos, WindowBorder, WindowConfig, WindowRelativeTo},
+use nvim::{
+    BufHandle,
+    api::{
+        Buffer, Window, cmd as vim_cmd, get_option_value, list_wins, open_win,
+        opts::{CmdOpts, OptionOpts, OptionScope},
+        set_option_value,
+        types::{CmdInfos, WindowBorder, WindowConfig, WindowRelativeTo},
+    },
 };
-use nvim_oxi::{self as nvim};

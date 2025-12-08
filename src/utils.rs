@@ -8,6 +8,7 @@ pub fn open_centred_floating_terminal_window() {
         window_height_ratio: Some(0.7),
         auto_width: false,
         auto_height: false,
+        buffer: None,
     });
 
     // Run the `:terminal` command inside the popup window's buffer

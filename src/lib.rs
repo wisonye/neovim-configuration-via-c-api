@@ -53,6 +53,8 @@ fn my_neovim_configuration() -> bool {
     my_dired::setup();
     auto_groups::setup();
 
+    picker::setup_picker_bindings();
+
     #[cfg(feature = "enable_plugin_debug_print")]
     nvim::print!("\n>>> My Neovim Configuration has loaded successfully.");
 
