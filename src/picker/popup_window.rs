@@ -121,8 +121,10 @@ pub fn create_popup_window(opts: &PopupWindowOptions) -> Option<i32> {
     nvim::print!("\n>>> {LOGGER_PREFIX} width: {width}, height: {height}");
 
     // Center window in `editor` area by calculating the (left, top)
-    let cols = (((screen_size.width as f32 - width) / 2f32).floor()) as u32;
-    let rows = (((screen_size.height as f32 - height) / 2f32).floor()) as u32;
+    let cal_width = if opts.border == WindowBorder::None { width } else { width + 2.0f32 };
+    let cal_height = if opts.border == WindowBorder::None { height } else { height + 2.0f32 };
+    let cols = (((screen_size.width as f32 - cal_width) / 2f32).floor()) as u32;
+    let rows = (((screen_size.height as f32 - cal_height) / 2f32).floor()) as u32;
 
     // // Debug print
     // nvim::print!(
