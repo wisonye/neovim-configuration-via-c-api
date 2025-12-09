@@ -158,6 +158,8 @@ fn run_test_picker() {
         },
         |picker_buffer_id: BufHandle, picker_window_id: WinHandle| {
             if let Ok(selected_line) = get_current_line() {
+                let _ = selected_line;
+
                 #[cfg(feature = "enable_picker_debug_print")]
                 nvim::print!(
                     "\n>>> {LOGGER_PREFIX} Pressed ENTER, selected line: {}",
@@ -168,6 +170,8 @@ fn run_test_picker() {
             }
         },
     );
+
+    let _ = result;
 
     #[cfg(feature = "enable_picker_debug_print")]
     nvim::print!("\n>>> {LOGGER_PREFIX} result: {:?}", result);
@@ -205,7 +209,7 @@ pub fn setup_picker_bindings() {
 
 use crate::picker::{PopupWindowOptions, create_popup_window};
 
-use nvim::{
+use nvim_oxi::{
     BufHandle, WinHandle,
     api::{
         Error as NvimError, Window, create_buf, get_current_line,

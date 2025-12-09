@@ -182,7 +182,7 @@ pub fn create_popup_window(opts: &PopupWindowOptions) -> Option<i32> {
 #[cfg(feature = "enable_picker_debug_print")]
 use nvim_oxi as nvim;
 
-use nvim::{
+use nvim_oxi::{
     BufHandle,
     api::{
         Buffer, get_option_value, open_win,
