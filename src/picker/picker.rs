@@ -405,8 +405,39 @@ where
     //
     // Inupt buffer keybindings:
     //
-    // - <tab>: Copy the current line in the list buffer into input buffer.
-    // - <c-d>: Delete the current line in the list buffer.
+
+    //
+    // Reset the input window as current window to get focus and input
+    //
+    let _ = set_current_win(&Window::from(input_window_handle));
+
+    Ok(())
+}
+
+///
+/// Set the following keybindings for the input buffer:
+///
+/// - <c-j>/<c-k>: Move the cursor up and down in the list buffer.
+/// - <tab>: Copy the current line in the list buffer into input buffer.
+/// - <c-d>: Delete the current line in the list buffer.
+/// - <CR>: Add input into the list buffer IF it doesn't exists, and then trigger callback.
+///
+fn set_input_buffer_keybindings<F>(
+    title_window_handle: i32,
+    input_window_handle: i32,
+    list_window_handle: i32,
+    mut selected_callback: F,
+) where
+    F: FnMut(String) + 'static,
+{
+    if title_window_handle == -1 || input_window_handle == -1 || list_window_handle == -1 {
+        return;
+    }
+
+    let input_window = Window::from(input_window_handle);
+
+    let mut input_buffer = input_window.get_buf().unwrap();
+    let input_buffer_handle = input_buffer.handle();
 
     // - <CR>: Add input into the list buffer IF it doesn't exists, and then trigger callback.
     let _ = input_buffer.set_keymap(
@@ -417,25 +448,22 @@ where
             .desc("Press ENTER to select")
             .callback(move |_| {
                 let mut selected_text = String::from("");
-                if input_buffer_handle != -1 {
-                    let temp_input_buffer = Buffer::from(input_buffer_handle);
 
-                    #[cfg(feature = "enable_picker_debug_print")]
-                    match temp_input_buffer.get_lines(0..1, true) {
-                        Ok(mut value) => {
-                            while let Some(v) = value.next() {
-                                nvim::print!("\n>>> {LOGGER_PREFIX} line: {}", v);
-                            }
-                        }
-                        Err(e) => {
-                            nvim::print!("\n>>> {LOGGER_PREFIX} get_lines_result failed: {e:?}");
+                #[cfg(feature = "enable_picker_debug_print")]
+                match input_buffer.get_lines(0..1, true) {
+                    Ok(mut value) => {
+                        while let Some(v) = value.next() {
+                            nvim::print!("\n>>> {LOGGER_PREFIX} line: {}", v);
                         }
                     }
+                    Err(e) => {
+                        nvim::print!("\n>>> {LOGGER_PREFIX} get_lines_result failed: {e:?}");
+                    }
+                }
 
-                    if let Ok(mut lines) = temp_input_buffer.get_lines(0..1, true) {
-                        if let Some(first_line) = lines.next() {
-                            selected_text = first_line.to_str().unwrap().to_owned();
-                        }
+                if let Ok(mut lines) = input_buffer.clone().get_lines(0..1, true) {
+                    if let Some(first_line) = lines.next() {
+                        selected_text = first_line.to_str().unwrap().to_owned();
                     }
                 }
 
@@ -446,15 +474,9 @@ where
                 let _ = vim_cmd(&infos, &opts);
 
                 // Close all windows
-                if title_window_handle != -1 {
-                    let _ = Window::from(title_window_handle).close(true);
-                }
-                if input_window_handle != -1 {
-                    let _ = Window::from(input_window_handle).close(true);
-                }
-                if list_window_handle != -1 {
-                    let _ = Window::from(list_window_handle).close(true);
-                }
+                let _ = Window::from(title_window_handle).close(true);
+                let _ = Window::from(input_window_handle).close(true);
+                let _ = Window::from(list_window_handle).close(true);
 
                 // Call the callback
                 selected_callback(selected_text);
@@ -466,7 +488,7 @@ where
     );
 
     // - <c-j>/<c-k>: Move the cursor up and down in the list buffer and set the input buffer text
-    let ctrl_jk_callabck =
+    let ctrl_jk_callback =
         move |list_win_ref: &mut Window, is_ctrl_j: bool, input_buffer_ref: &mut Buffer| {
             if let Ok(cursor_pos) = &list_win_ref.get_cursor() {
                 let mut row = cursor_pos.0;
@@ -491,17 +513,17 @@ where
                             );
                         }
                     }
-                }
 
-                // Update list window cursor
-                if let Ok(line_count) = list_buffer.line_count() {
-                    if is_ctrl_j {
-                        if row < line_count {
-                            row += 1;
-                        }
-                    } else {
-                        if row > 1 {
-                            row -= 1;
+                    // Update list window cursor
+                    if let Ok(line_count) = list_buffer.line_count() {
+                        if is_ctrl_j {
+                            if row < line_count {
+                                row += 1;
+                            }
+                        } else {
+                            if row > 1 {
+                                row -= 1;
+                            }
                         }
                     }
                 }
@@ -510,7 +532,7 @@ where
             }
         };
 
-    let ctrl_jk_callback_clone = ctrl_jk_callabck.clone();
+    let ctrl_jk_callback_clone = ctrl_jk_callback.clone();
     let _ = input_buffer.set_keymap(
         Mode::Insert,
         "<c-j>",
@@ -520,13 +542,11 @@ where
             .noremap(true)
             .silent(false)
             .callback(move |_| {
-                if list_window_handle != -1 && input_buffer_handle != -1 {
-                    ctrl_jk_callback_clone(
-                        &mut Window::from(list_window_handle),
-                        true,
-                        &mut Buffer::from(input_buffer_handle),
-                    );
-                }
+                ctrl_jk_callback_clone(
+                    &mut Window::from(list_window_handle),
+                    true,
+                    &mut Buffer::from(input_buffer_handle),
+                );
                 ()
             })
             .build(),
@@ -540,24 +560,15 @@ where
             .noremap(true)
             .silent(false)
             .callback(move |_| {
-                if list_window_handle != -1 && input_buffer_handle != -1 {
-                    ctrl_jk_callabck(
-                        &mut Window::from(list_window_handle),
-                        false,
-                        &mut Buffer::from(input_buffer_handle),
-                    );
-                }
+                ctrl_jk_callback_clone(
+                    &mut Window::from(list_window_handle),
+                    false,
+                    &mut Buffer::from(input_buffer_handle),
+                );
                 ()
             })
             .build(),
     );
-
-    //
-    // Reset the input window as current window to get focus and input
-    //
-    let _ = set_current_win(&Window::from(input_window_handle));
-
-    Ok(())
 }
 
 ///
