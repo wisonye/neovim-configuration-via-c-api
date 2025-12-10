@@ -419,10 +419,9 @@ where
                 let mut selected_text = String::from("");
                 if input_buffer_handle != -1 {
                     let temp_input_buffer = Buffer::from(input_buffer_handle);
-                    let get_lines_result = temp_input_buffer.get_lines(0..1, true);
 
                     #[cfg(feature = "enable_picker_debug_print")]
-                    match get_lines_result {
+                    match temp_input_buffer.get_lines(0..1, true) {
                         Ok(mut value) => {
                             while let Some(v) = value.next() {
                                 nvim::print!("\n>>> {LOGGER_PREFIX} line: {}", v);
@@ -432,8 +431,6 @@ where
                             nvim::print!("\n>>> {LOGGER_PREFIX} get_lines_result failed: {e:?}");
                         }
                     }
-
-                    let _ = get_lines_result;
 
                     if let Ok(mut lines) = temp_input_buffer.get_lines(0..1, true) {
                         if let Some(first_line) = lines.next() {
@@ -468,25 +465,50 @@ where
             .build(),
     );
 
-    // - <c-j>/<c-k>: Move the cursor up and down in the list buffer.
-    let ctrl_jk_callabck = move |list_win_ref: &mut Window, is_ctrl_j: bool| {
-        if let Ok(cursor_pos) = &list_win_ref.get_cursor() {
-            let row = cursor_pos.0;
-            let col = cursor_pos.1;
+    // - <c-j>/<c-k>: Move the cursor up and down in the list buffer and set the input buffer text
+    let ctrl_jk_callabck =
+        move |list_win_ref: &mut Window, is_ctrl_j: bool, input_buffer_ref: &mut Buffer| {
+            if let Ok(cursor_pos) = &list_win_ref.get_cursor() {
+                let mut row = cursor_pos.0;
+                let col = cursor_pos.1;
 
-            if let Ok(line_count) = list_buffer.line_count() {
-                if is_ctrl_j {
-                    if row < line_count {
-                        let _ = list_win_ref.set_cursor(row + 1, col);
+                if !is_ctrl_j && row == 1 {
+                    return;
+                }
+
+                // Set the input window text to current line from list window
+                if let Ok(list_buffer) = list_win_ref.get_buf() {
+                    let mut read_line_range: std::ops::Range<usize> = row..row + 1;
+                    if !is_ctrl_j && row >= 2 {
+                        read_line_range = row - 2..row - 1;
                     }
-                } else {
-                    if row > 1 {
-                        let _ = list_win_ref.set_cursor(row - 1, col);
+                    if let Ok(mut lines) = list_buffer.get_lines(read_line_range.clone(), true) {
+                        if let Some(first_line) = lines.next() {
+                            let _ = input_buffer_ref.set_lines(
+                                ..,
+                                true,
+                                vec![first_line.to_str().unwrap()],
+                            );
+                        }
                     }
                 }
+
+                // Update list window cursor
+                if let Ok(line_count) = list_buffer.line_count() {
+                    if is_ctrl_j {
+                        if row < line_count {
+                            row += 1;
+                        }
+                    } else {
+                        if row > 1 {
+                            row -= 1;
+                        }
+                    }
+                }
+
+                let _ = list_win_ref.set_cursor(row, col);
             }
-        }
-    };
+        };
 
     let ctrl_jk_callback_clone = ctrl_jk_callabck.clone();
     let _ = input_buffer.set_keymap(
@@ -498,8 +520,12 @@ where
             .noremap(true)
             .silent(false)
             .callback(move |_| {
-                if list_window_handle != -1 {
-                    ctrl_jk_callback_clone(&mut Window::from(list_window_handle), true);
+                if list_window_handle != -1 && input_buffer_handle != -1 {
+                    ctrl_jk_callback_clone(
+                        &mut Window::from(list_window_handle),
+                        true,
+                        &mut Buffer::from(input_buffer_handle),
+                    );
                 }
                 ()
             })
@@ -514,8 +540,12 @@ where
             .noremap(true)
             .silent(false)
             .callback(move |_| {
-                if list_window_handle != -1 {
-                    ctrl_jk_callabck(&mut Window::from(list_window_handle), false);
+                if list_window_handle != -1 && input_buffer_handle != -1 {
+                    ctrl_jk_callabck(
+                        &mut Window::from(list_window_handle),
+                        false,
+                        &mut Buffer::from(input_buffer_handle),
+                    );
                 }
                 ()
             })
@@ -537,7 +567,7 @@ fn run_test_picker() {
     #[cfg(feature = "enable_picker_debug_print")]
     const LOGGER_PREFIX: &'static str = "[ picker - run_test_picker ]";
 
-    let _  = create_picker_with_options(
+    let _ = create_picker_with_options(
         &mut PickerOptions {
             window_opts: PopupWindowOptions {
                 border: WindowBorder::Rounded,
