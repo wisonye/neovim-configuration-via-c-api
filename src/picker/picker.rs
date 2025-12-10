@@ -200,7 +200,7 @@ fn create_editable_picker_with_options<F>(
     mut selected_callback: F,
 ) -> Result<(), NvimError>
 where
-    F: FnMut(BufHandle, WinHandle) + Clone + 'static,
+    F: FnMut(String) + 'static,
 {
     #[cfg(feature = "enable_picker_debug_print")]
     const LOGGER_PREFIX: &'static str = "[ picker - create_editable_picker_with_options<F> ]";
@@ -391,6 +391,15 @@ where
 
     if let Ok(list_window) = open_win(&list_buffer, false, &list_window_config) {
         list_window_handle = list_window.handle();
+
+        //
+        // Enable list window cursor line
+        //
+        let _ = set_option_value(
+            "cursorline",
+            true,
+            &OptionOpts::builder().win(list_window.clone()).build(),
+        );
     }
 
     //
@@ -407,12 +416,39 @@ where
         &SetKeymapOpts::builder()
             .desc("Press ENTER to select")
             .callback(move |_| {
-                let current_win = Window::current();
-                selected_callback(input_buffer_handle, current_win.handle());
+                let mut selected_text = String::from("");
+                if input_buffer_handle != -1 {
+                    let temp_input_buffer = Buffer::from(input_buffer_handle);
+                    let get_lines_result = temp_input_buffer.get_lines(0..1, true);
 
-                //
+                    #[cfg(feature = "enable_picker_debug_print")]
+                    match get_lines_result {
+                        Ok(mut value) => {
+                            while let Some(v) = value.next() {
+                                nvim::print!("\n>>> {LOGGER_PREFIX} line: {}", v);
+                            }
+                        }
+                        Err(e) => {
+                            nvim::print!("\n>>> {LOGGER_PREFIX} get_lines_result failed: {e:?}");
+                        }
+                    }
+
+                    let _ = get_lines_result;
+
+                    if let Ok(mut lines) = temp_input_buffer.get_lines(0..1, true) {
+                        if let Some(first_line) = lines.next() {
+                            selected_text = first_line.to_str().unwrap().to_owned();
+                        }
+                    }
+                }
+
+                // Back to normal mode
+                let command = "stopinsert";
+                let infos = CmdInfos::builder().cmd(command).build();
+                let opts = CmdOpts::builder().output(false).build();
+                let _ = vim_cmd(&infos, &opts);
+
                 // Close all windows
-                //
                 if title_window_handle != -1 {
                     let _ = Window::from(title_window_handle).close(true);
                 }
@@ -423,6 +459,9 @@ where
                     let _ = Window::from(list_window_handle).close(true);
                 }
 
+                // Call the callback
+                selected_callback(selected_text);
+
                 ()
             })
             .silent(true)
@@ -430,24 +469,56 @@ where
     );
 
     // - <c-j>/<c-k>: Move the cursor up and down in the list buffer.
+    let ctrl_jk_callabck = move |list_win_ref: &mut Window, is_ctrl_j: bool| {
+        if let Ok(cursor_pos) = &list_win_ref.get_cursor() {
+            let row = cursor_pos.0;
+            let col = cursor_pos.1;
+
+            if let Ok(line_count) = list_buffer.line_count() {
+                if is_ctrl_j {
+                    if row < line_count {
+                        let _ = list_win_ref.set_cursor(row + 1, col);
+                    }
+                } else {
+                    if row > 1 {
+                        let _ = list_win_ref.set_cursor(row - 1, col);
+                    }
+                }
+            }
+        }
+    };
+
+    let ctrl_jk_callback_clone = ctrl_jk_callabck.clone();
     let _ = input_buffer.set_keymap(
         Mode::Insert,
         "<c-j>",
-        "j",
+        "",
         &SetKeymapOpts::builder()
             .desc("'<c-j>' to move down")
             .noremap(true)
             .silent(false)
+            .callback(move |_| {
+                if list_window_handle != -1 {
+                    ctrl_jk_callback_clone(&mut Window::from(list_window_handle), true);
+                }
+                ()
+            })
             .build(),
     );
     let _ = input_buffer.set_keymap(
         Mode::Insert,
         "<c-k>",
-        "k",
+        "",
         &SetKeymapOpts::builder()
             .desc("'<c-k>' to move up")
             .noremap(true)
             .silent(false)
+            .callback(move |_| {
+                if list_window_handle != -1 {
+                    ctrl_jk_callabck(&mut Window::from(list_window_handle), false);
+                }
+                ()
+            })
             .build(),
     );
 
@@ -466,7 +537,7 @@ fn run_test_picker() {
     #[cfg(feature = "enable_picker_debug_print")]
     const LOGGER_PREFIX: &'static str = "[ picker - run_test_picker ]";
 
-    let result = create_picker_with_options(
+    let _  = create_picker_with_options(
         &mut PickerOptions {
             window_opts: PopupWindowOptions {
                 border: WindowBorder::Rounded,
@@ -528,18 +599,10 @@ fn run_test_picker_2() {
                 String::from("./build_release.sh"),
             ],
         },
-        |picker_buffer_id: BufHandle, picker_window_id: WinHandle| {
-            if let Ok(selected_line) = get_current_line() {
-                let _ = selected_line;
-
-                #[cfg(feature = "enable_picker_debug_print")]
-                nvim::print!(
-                    "\n>>> {LOGGER_PREFIX} Pressed ENTER, selected line: {}",
-                    selected_line
-                );
-
-                let _ = Window::from(picker_window_id).close(false);
-            }
+        // |picker_buffer_id: BufHandle, picker_window_id: WinHandle| {
+        |selected_text: String| {
+            #[cfg(feature = "enable_picker_debug_print")]
+            nvim::print!("\n>>> {LOGGER_PREFIX} Pressed ENTER, selected_text: {selected_text}",);
         },
     );
 
@@ -585,10 +648,10 @@ use crate::picker::{PopupWindowOptions, create_popup_window, get_screen_size};
 use nvim_oxi::{
     BufHandle, WinHandle,
     api::{
-        Buffer, Error as NvimError, Window, create_buf, get_current_line, open_win,
-        opts::{OptionOpts, SetKeymapOpts},
+        Buffer, Error as NvimError, Window, cmd as vim_cmd, create_buf, get_current_line, open_win,
+        opts::{CmdOpts, OptionOpts, SetKeymapOpts},
         set_current_win, set_keymap, set_option_value,
-        types::{Mode, WindowBorder, WindowBorderChar, WindowConfig, WindowRelativeTo},
+        types::{CmdInfos, Mode, WindowBorder, WindowBorderChar, WindowConfig, WindowRelativeTo},
     },
 };
 
