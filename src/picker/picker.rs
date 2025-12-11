@@ -412,9 +412,13 @@ where
     );
 
     //
-    // Reset the input window as current window to get focus and input
+    // Reset the input window as current window to get focus and input, and go into `INSERT` mode.
     //
     let _ = set_current_win(&Window::from(input_window_handle));
+    let command = "startinsert";
+    let infos = CmdInfos::builder().cmd(command).build();
+    let opts = CmdOpts::builder().output(false).build();
+    let _ = vim_cmd(&infos, &opts);
 
     Ok(())
 }
@@ -540,10 +544,10 @@ use crate::picker::{
 use nvim_oxi::{
     BufHandle, WinHandle,
     api::{
-        Buffer, Error as NvimError, Window, create_buf, get_current_line, open_win,
-        opts::{OptionOpts, SetKeymapOpts},
+        Buffer, Error as NvimError, Window, cmd as vim_cmd, create_buf, get_current_line, open_win,
+        opts::{CmdOpts, OptionOpts, SetKeymapOpts},
         set_current_win, set_keymap, set_option_value,
-        types::{Mode, WindowBorder, WindowBorderChar, WindowConfig, WindowRelativeTo},
+        types::{CmdInfos, Mode, WindowBorder, WindowBorderChar, WindowConfig, WindowRelativeTo},
     },
 };
 
