@@ -96,8 +96,6 @@ fn enter_callback<F>(
 /// Set the following keybindings for the input buffer:
 ///
 /// - <c-j>/<c-k>: Move the cursor up and down in the list buffer.
-/// - <tab>: Copy the current line in the list buffer into input buffer.
-/// - <c-d>: Delete the current line in the list buffer.
 /// - <CR>: Add input into the list buffer IF it doesn't exists, and then trigger callback.
 ///
 pub fn set_input_buffer_keybindings<F>(

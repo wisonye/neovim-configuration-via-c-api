@@ -163,13 +163,23 @@ where
 }
 
 ///
-/// Editable Picker options
+/// Editable picker options
 ///
 #[derive(Debug)]
-pub struct EditablePickerOptions {
-    title: String,
-    window_opts: PopupWindowOptions,
-    list: Vec<String>,
+pub struct EditablePickerOptions<'epo> {
+    pub title: String,
+    pub window_opts: PopupWindowOptions,
+    pub list: &'epo Vec<String>,
+}
+
+///
+/// Editable picker open result
+///
+#[derive(Debug)]
+pub struct EditablePickerOpenResult {
+    title_window_handle: i32,
+    input_window_handle: i32,
+    list_window_handle: i32,
 }
 
 ///
@@ -191,14 +201,12 @@ pub struct EditablePickerOptions {
 /// (i.e., give it focus and input). Also, set the following keybindings for the input buffer:
 ///
 /// - <c-j>/<c-k>: Move the cursor up and down in the list buffer.
-/// - <tab>: Copy the current line in the list buffer into input buffer.
-/// - <c-d>: Delete the current line in the list buffer.
 /// - <CR>: Add input into the list buffer IF it doesn't exists, and then trigger callback.
 ///
-fn create_editable_picker_with_options<F>(
+pub fn create_editable_picker_with_options<F>(
     opts: &mut EditablePickerOptions,
     selected_callback: F,
-) -> Result<(), NvimError>
+) -> Result<EditablePickerOpenResult, NvimError>
 where
     F: FnMut(String) + Clone + 'static,
 {
@@ -420,7 +428,11 @@ where
     let opts = CmdOpts::builder().output(false).build();
     let _ = vim_cmd(&infos, &opts);
 
-    Ok(())
+    Ok(EditablePickerOpenResult {
+        title_window_handle,
+        input_window_handle,
+        list_window_handle,
+    })
 }
 
 ///
@@ -483,7 +495,7 @@ fn run_test_picker_2() {
                 auto_height: true,
                 buffer: None,
             },
-            list: vec![
+            list: &vec![
                 String::from("11111"),
                 String::from("22222"),
                 String::from("33333"),
@@ -492,7 +504,6 @@ fn run_test_picker_2() {
                 String::from("./build_release.sh"),
             ],
         },
-        // |picker_buffer_id: BufHandle, picker_window_id: WinHandle| {
         |selected_text: String| {
             #[cfg(feature = "enable_picker_debug_print")]
             nvim::print!("\n>>> {LOGGER_PREFIX} Pressed ENTER, selected_text: {selected_text}",);

@@ -8,18 +8,20 @@
 //!     - ...
 //!
 //!
-//! You can assign a key binding to lazy load and execute this plugin like this:
-//!
-//! ```lua
-//! vim.keymap.set(
-//!     "n",
-//!     "<C-c>j",
-//!     "<cmd>lua require('my_dired').open()<CR>",
-//!     {
-//!         silent = true,
-//!         desc = "Open file explorer with current buffer directory"
-//!     }
-//! )
+//! ```rust
+//!  let _ = set_keymap(
+//!      Mode::Normal,
+//!      "<C-c>j",
+//!      "",
+//!      &SetKeymapOpts::builder()
+//!          .desc("Open my dired with current buffer directory")
+//!          .silent(true)
+//!          .callback(|_| {
+//!              open();
+//!              ()
+//!          })
+//!          .build(),
+//!  );
 //! ```
 
 #[derive(Debug, Default)]

@@ -47,12 +47,12 @@
 ///
 #[nvim_oxi::plugin]
 fn my_neovim_configuration() -> bool {
-
     settings::setup();
     keybindings::setup();
     my_dired::setup();
     auto_groups::setup();
-    picker::setup();
+    // picker::setup();
+    project_command::setup();
 
     #[cfg(feature = "enable_plugin_debug_print")]
     nvim::print!("\n>>> My Neovim Configuration has loaded successfully.");
@@ -63,9 +63,10 @@ fn my_neovim_configuration() -> bool {
 #[cfg(feature = "enable_plugin_debug_print")]
 use nvim_oxi as nvim;
 
-mod utils;
-mod settings;
+mod auto_groups;
 mod keybindings;
 mod my_dired;
-mod auto_groups;
 mod picker;
+mod project_command;
+mod settings;
+mod utils;
