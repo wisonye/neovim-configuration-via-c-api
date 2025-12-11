@@ -52,8 +52,7 @@ fn my_neovim_configuration() -> bool {
     keybindings::setup();
     my_dired::setup();
     auto_groups::setup();
-
-    picker::setup_picker_bindings();
+    picker::setup();
 
     #[cfg(feature = "enable_plugin_debug_print")]
     nvim::print!("\n>>> My Neovim Configuration has loaded successfully.");

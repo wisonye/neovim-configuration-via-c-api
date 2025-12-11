@@ -290,30 +290,25 @@ pub fn setup() {
         );
     }
 
-    let my_keybindings_with_callback: Vec<(Mode, &str, &str, Box<dyn Fn()>)> = vec![
+    // let my_keybindings_with_callback: Vec<(Mode, &str, &str, Box<dyn Fn()>)> = vec![
+    let my_keybindings_with_callback: Vec<(Mode, &str, &str, &dyn Fn())> = vec![
         (
             Mode::Normal,
             "<leader>1",
             "'<leader>1': Kill other windows.",
-            Box::new(|| {
-                kill_other_windows();
-            }),
+            &kill_other_windows,
         ),
         (
             Mode::Normal,
             "<leader>sc",
             "'<leader>sc': Toggle spell checking.",
-            Box::new(|| {
-                toggle_spell_checking();
-            }),
+            &toggle_spell_checking,
         ),
         (
             Mode::Normal,
             "<leader>ft",
             "'<leader>ft': Open a floating terminal.",
-            Box::new(|| {
-                open_centred_floating_terminal_window();
-            }),
+            &open_centred_floating_terminal_window,
         ),
     ];
 

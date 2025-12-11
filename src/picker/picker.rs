@@ -197,10 +197,10 @@ pub struct EditablePickerOptions {
 ///
 fn create_editable_picker_with_options<F>(
     opts: &mut EditablePickerOptions,
-    mut selected_callback: F,
+    selected_callback: F,
 ) -> Result<(), NvimError>
 where
-    F: FnMut(String) + 'static,
+    F: FnMut(String) + Clone + 'static,
 {
     #[cfg(feature = "enable_picker_debug_print")]
     const LOGGER_PREFIX: &'static str = "[ picker - create_editable_picker_with_options<F> ]";
@@ -214,8 +214,7 @@ where
     // Create buffers
     //
     let mut title_buffer = create_popup_buffer()?;
-    let mut input_buffer = create_popup_buffer()?;
-    let input_buffer_handle = input_buffer.handle();
+    let input_buffer = create_popup_buffer()?;
     let mut list_buffer = create_popup_buffer()?;
 
     let _ = title_buffer.set_lines(.., true, vec![opts.title.clone()])?;
@@ -405,6 +404,12 @@ where
     //
     // Inupt buffer keybindings:
     //
+    let _ = set_input_buffer_keybindings(
+        title_window_handle,
+        input_window_handle,
+        list_window_handle,
+        selected_callback,
+    );
 
     //
     // Reset the input window as current window to get focus and input
@@ -412,163 +417,6 @@ where
     let _ = set_current_win(&Window::from(input_window_handle));
 
     Ok(())
-}
-
-///
-/// Set the following keybindings for the input buffer:
-///
-/// - <c-j>/<c-k>: Move the cursor up and down in the list buffer.
-/// - <tab>: Copy the current line in the list buffer into input buffer.
-/// - <c-d>: Delete the current line in the list buffer.
-/// - <CR>: Add input into the list buffer IF it doesn't exists, and then trigger callback.
-///
-fn set_input_buffer_keybindings<F>(
-    title_window_handle: i32,
-    input_window_handle: i32,
-    list_window_handle: i32,
-    mut selected_callback: F,
-) where
-    F: FnMut(String) + 'static,
-{
-    if title_window_handle == -1 || input_window_handle == -1 || list_window_handle == -1 {
-        return;
-    }
-
-    let input_window = Window::from(input_window_handle);
-
-    let mut input_buffer = input_window.get_buf().unwrap();
-    let input_buffer_handle = input_buffer.handle();
-
-    // - <CR>: Add input into the list buffer IF it doesn't exists, and then trigger callback.
-    let _ = input_buffer.set_keymap(
-        Mode::Insert,
-        "<CR>",
-        "",
-        &SetKeymapOpts::builder()
-            .desc("Press ENTER to select")
-            .callback(move |_| {
-                let mut selected_text = String::from("");
-
-                #[cfg(feature = "enable_picker_debug_print")]
-                match input_buffer.get_lines(0..1, true) {
-                    Ok(mut value) => {
-                        while let Some(v) = value.next() {
-                            nvim::print!("\n>>> {LOGGER_PREFIX} line: {}", v);
-                        }
-                    }
-                    Err(e) => {
-                        nvim::print!("\n>>> {LOGGER_PREFIX} get_lines_result failed: {e:?}");
-                    }
-                }
-
-                if let Ok(mut lines) = input_buffer.clone().get_lines(0..1, true) {
-                    if let Some(first_line) = lines.next() {
-                        selected_text = first_line.to_str().unwrap().to_owned();
-                    }
-                }
-
-                // Back to normal mode
-                let command = "stopinsert";
-                let infos = CmdInfos::builder().cmd(command).build();
-                let opts = CmdOpts::builder().output(false).build();
-                let _ = vim_cmd(&infos, &opts);
-
-                // Close all windows
-                let _ = Window::from(title_window_handle).close(true);
-                let _ = Window::from(input_window_handle).close(true);
-                let _ = Window::from(list_window_handle).close(true);
-
-                // Call the callback
-                selected_callback(selected_text);
-
-                ()
-            })
-            .silent(true)
-            .build(),
-    );
-
-    // - <c-j>/<c-k>: Move the cursor up and down in the list buffer and set the input buffer text
-    let ctrl_jk_callback =
-        move |list_win_ref: &mut Window, is_ctrl_j: bool, input_buffer_ref: &mut Buffer| {
-            if let Ok(cursor_pos) = &list_win_ref.get_cursor() {
-                let mut row = cursor_pos.0;
-                let col = cursor_pos.1;
-
-                if !is_ctrl_j && row == 1 {
-                    return;
-                }
-
-                // Set the input window text to current line from list window
-                if let Ok(list_buffer) = list_win_ref.get_buf() {
-                    let mut read_line_range: std::ops::Range<usize> = row..row + 1;
-                    if !is_ctrl_j && row >= 2 {
-                        read_line_range = row - 2..row - 1;
-                    }
-                    if let Ok(mut lines) = list_buffer.get_lines(read_line_range.clone(), true) {
-                        if let Some(first_line) = lines.next() {
-                            let _ = input_buffer_ref.set_lines(
-                                ..,
-                                true,
-                                vec![first_line.to_str().unwrap()],
-                            );
-                        }
-                    }
-
-                    // Update list window cursor
-                    if let Ok(line_count) = list_buffer.line_count() {
-                        if is_ctrl_j {
-                            if row < line_count {
-                                row += 1;
-                            }
-                        } else {
-                            if row > 1 {
-                                row -= 1;
-                            }
-                        }
-                    }
-                }
-
-                let _ = list_win_ref.set_cursor(row, col);
-            }
-        };
-
-    let ctrl_jk_callback_clone = ctrl_jk_callback.clone();
-    let _ = input_buffer.set_keymap(
-        Mode::Insert,
-        "<c-j>",
-        "",
-        &SetKeymapOpts::builder()
-            .desc("'<c-j>' to move down")
-            .noremap(true)
-            .silent(false)
-            .callback(move |_| {
-                ctrl_jk_callback_clone(
-                    &mut Window::from(list_window_handle),
-                    true,
-                    &mut Buffer::from(input_buffer_handle),
-                );
-                ()
-            })
-            .build(),
-    );
-    let _ = input_buffer.set_keymap(
-        Mode::Insert,
-        "<c-k>",
-        "",
-        &SetKeymapOpts::builder()
-            .desc("'<c-k>' to move up")
-            .noremap(true)
-            .silent(false)
-            .callback(move |_| {
-                ctrl_jk_callback_clone(
-                    &mut Window::from(list_window_handle),
-                    false,
-                    &mut Buffer::from(input_buffer_handle),
-                );
-                ()
-            })
-            .build(),
-    );
 }
 
 ///
@@ -654,9 +502,9 @@ fn run_test_picker_2() {
 }
 
 ///
-/// Setup a test picker bindings
 ///
-pub fn setup_picker_bindings() {
+///
+pub fn setup() {
     let picker_keybindings_with_callback: Vec<(Mode, &str, &str, Box<dyn Fn()>)> = vec![(
         Mode::Normal,
         "<leader>tp",
@@ -684,15 +532,18 @@ pub fn setup_picker_bindings() {
     }
 }
 
-use crate::picker::{PopupWindowOptions, create_popup_window, get_screen_size};
+use crate::picker::{
+    PopupWindowOptions, create_popup_window, get_screen_size,
+    keybindings::set_input_buffer_keybindings,
+};
 
 use nvim_oxi::{
     BufHandle, WinHandle,
     api::{
-        Buffer, Error as NvimError, Window, cmd as vim_cmd, create_buf, get_current_line, open_win,
-        opts::{CmdOpts, OptionOpts, SetKeymapOpts},
+        Buffer, Error as NvimError, Window, create_buf, get_current_line, open_win,
+        opts::{OptionOpts, SetKeymapOpts},
         set_current_win, set_keymap, set_option_value,
-        types::{CmdInfos, Mode, WindowBorder, WindowBorderChar, WindowConfig, WindowRelativeTo},
+        types::{Mode, WindowBorder, WindowBorderChar, WindowConfig, WindowRelativeTo},
     },
 };
 
