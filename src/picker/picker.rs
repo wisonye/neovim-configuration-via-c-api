@@ -384,10 +384,11 @@ where
     );
 
     top += 3; // title_win height: 1, input_win height: 1
+    let list_len = opts.list.len() as u32;
     let list_window_config = WindowConfig::builder()
         .relative(WindowRelativeTo::Editor)
         .width(width as u32)
-        .height(opts.list.len() as u32)
+        .height(if list_len > 0 { list_len } else { 1 })
         .row(top)
         .col(left)
         .border(list_win_popup_border)
