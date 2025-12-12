@@ -66,6 +66,40 @@ fn get_project_script_files(project_dir: &str) -> std::io::Result<Vec<String>> {
 }
 
 ///
+///
+///
+fn picker_selected_callback(project_dir: &str, cmd: &String) {
+    #[cfg(feature = "enable_project_command_debug_print")]
+    const LOGGER_PREFIX: &'static str = "[ project_command - picker_selected_callback ]";
+
+    //
+    // Lock the state and get back the cmd list
+    //
+    let mut locked_state = MY_PROJECT_COMMAND_STATE.lock();
+    let state = locked_state.as_mut().unwrap();
+
+    if let Some(cmd_list) = state.cmd_map.get_mut(project_dir) {
+        //
+        // Update the cmd list if the cmd doesn't exists
+        //
+        if cmd_list
+            .iter()
+            .find(|&item| item.cmp(cmd) == core::cmp::Ordering::Equal)
+            .iter()
+            .count()
+            == 0
+        {
+            cmd_list.push(cmd.clone());
+
+            //
+            // Remove the empty placeholder line (used for rendering the empty list window) if exists.
+            //
+            cmd_list.retain(|line| !line.is_empty());
+        }
+    }
+}
+
+///
 /// Options
 ///
 struct ProjectCommandOptions {
@@ -134,29 +168,31 @@ fn open(options: ProjectCommandOptions) {
     //
     // Get back the `project_dir` cmd list
     //
+    // if let Some(cmd_list) = state.cmd_map.get_mut(&project_dir) {
     if let Some(cmd_list) = state.cmd_map.get(&project_dir) {
-        let result = create_editable_picker_with_options(
+        let open_result = create_editable_picker_with_options(
             &mut EditablePickerOptions {
-                title: "Project Command ('Ctrl+d' to delete item)".to_string(),
+                title: "Project Command ('Ctrl+d' to delete item, 'Ctrl+e' to close picker)".to_string(),
                 window_opts: PopupWindowOptions {
                     border: WindowBorder::Rounded,
-                    // window_width_ratio: Some(0.7),
-                    // window_height_ratio: Some(0.7),
                     window_width_ratio: None,
                     window_height_ratio: None,
                     auto_width: true,
                     auto_height: true,
                     buffer: None,
                 },
-                list: &cmd_list,
+                list: cmd_list,
             },
-            |selected_text: String| {
-                #[cfg(feature = "enable_picker_debug_print")]
-                nvim::print!("\n>>> {LOGGER_PREFIX} Pressed ENTER, selected_text: {selected_text}",);
+            move |selected_text: String| {
+                picker_selected_callback(&project_dir, &selected_text);
             },
         );
-    };
 
+        #[cfg(feature = "enable_project_command_debug_print")]
+        nvim::print!("{LOGGER_PREFIX} open_result: {open_result:#?}");
+
+        let _ = open_result;
+    };
 }
 
 ///
