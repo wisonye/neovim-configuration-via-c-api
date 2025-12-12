@@ -93,10 +93,32 @@ fn enter_callback<F>(
 }
 
 ///
+/// <c-e>: Quit the picker without trigger the `selected_callback`.
+///
+fn ctrl_e_to_close_the_picker(
+    title_window_handle: i32,
+    input_window_handle: i32,
+    list_window_handle: i32,
+) {
+
+    // Back to normal mode
+    let command = "stopinsert";
+    let infos = CmdInfos::builder().cmd(command).build();
+    let opts = CmdOpts::builder().output(false).build();
+    let _ = vim_cmd(&infos, &opts);
+
+    // Close all windows
+    let _ = Window::from(title_window_handle).close(true);
+    let _ = Window::from(input_window_handle).close(true);
+    let _ = Window::from(list_window_handle).close(true);
+}
+
+///
 /// Set the following keybindings for the input buffer:
 ///
 /// - <c-j>/<c-k>: Move the cursor up and down in the list buffer.
 /// - <CR>: Add input into the list buffer IF it doesn't exists, and then trigger callback.
+/// - <c-e>: Quit the picker without trigger the `selected_callback`.
 ///
 pub fn set_input_buffer_keybindings<F>(
     title_window_handle: i32,
@@ -188,6 +210,30 @@ pub fn set_input_buffer_keybindings<F>(
                     &mut Window::from(list_window_handle),
                     false,
                     &mut Buffer::from(input_buffer_handle),
+                );
+            }),
+        ),
+        (
+            Mode::Normal,
+            "<c-e>",
+            "'<c-e>' to close the picker",
+            Box::new(move || {
+                ctrl_e_to_close_the_picker(
+                    title_window_handle,
+                    input_window_handle,
+                    list_window_handle,
+                );
+            }),
+        ),
+        (
+            Mode::Insert,
+            "<c-e>",
+            "'<c-e>' to close the picker",
+            Box::new(move || {
+                ctrl_e_to_close_the_picker(
+                    title_window_handle,
+                    input_window_handle,
+                    list_window_handle,
                 );
             }),
         ),
