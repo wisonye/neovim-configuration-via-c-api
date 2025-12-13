@@ -35,15 +35,31 @@ struct ModuleState {
     // project_dir <--> project command state
     //
     cmd_map: HashMap<String, ProjectCommandState>,
+
+    //
+    // custom highlight namespace, you don't need to destroy it manually, it's cheap, just an integer!!!
+    //
+    custom_highlight: Option<u32>,
 }
 
 impl ModuleState {
     fn init() -> Self {
         Self {
             cmd_map: HashMap::with_capacity(10),
+            custom_highlight: Some(create_namespace("project_command_highlight")),
         }
     }
 }
+
+// impl Drop for ModuleState {
+//     fn drop(&mut self) {
+//         // const LOGGER_PREFIX: &'static str = "[ project_command - ModuleState.drop ]";
+//         // nvim_oxi::print!(
+//         //     "{LOGGER_PREFIX} delete the 'custom_highlight': {:?}",
+//         //     self.custom_highlight
+//         // );
+//     }
+// }
 
 ///
 /// Private module-scope state
@@ -488,6 +504,7 @@ fn open(options: ProjectCommandOptions) {
                     buffer: None,
                 },
                 list: &display_cmd_list,
+                custom_highlight_id: module_state.custom_highlight.unwrap(),
             },
             move |selected_text: String| {
                 picker_selected_callback(&project_dir, selected_text);
@@ -538,7 +555,8 @@ use std::{
 use nvim_oxi::{
     String as NvimString,
     api::{
-        Buffer, cmd as vim_cmd, create_buf, get_option_value, list_bufs, open_win,
+        Buffer, cmd as vim_cmd, create_buf, create_namespace, get_option_value, list_bufs,
+        open_win,
         opts::{CmdOpts, OptionOpts, SetKeymapOpts},
         set_keymap, set_option_value,
         types::{CmdInfos, Mode, SplitDirection, WindowBorder, WindowConfig},

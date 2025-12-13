@@ -170,6 +170,7 @@ pub struct EditablePickerOptions<'epo> {
     pub title: String,
     pub window_opts: PopupWindowOptions,
     pub list: &'epo Vec<String>,
+    pub custom_highlight_id: u32,
 }
 
 ///
@@ -225,10 +226,43 @@ where
     let input_buffer = create_popup_buffer()?;
     let mut list_buffer = create_popup_buffer()?;
 
-    let _ = title_buffer.set_lines(.., true, vec![opts.title.clone()])?;
-
+    // Fill list buffer
     let list_content = opts.list.iter().map(|v| v.as_str()).collect::<Vec<&str>>();
     let _ = list_buffer.set_lines(.., true, list_content)?;
+
+    // Fill title buffer and set highlight colors
+    let _ = title_buffer.set_lines(.., true, vec![opts.title.clone()])?;
+    let _ = title_buffer.set_extmark(
+        opts.custom_highlight_id, // namespace ID
+        0,                        // start line/row
+        0,                        // start col
+        &SetExtmarkOpts::builder()
+            .end_line(0)
+            .end_col(15)
+            .hl_group("String")
+            .build(),
+    );
+    let _ = title_buffer.set_extmark(
+        opts.custom_highlight_id, // namespace ID
+        0,                        // start line/row
+        18,                       // start col
+        &SetExtmarkOpts::builder()
+            .end_line(0)
+            .end_col(24)
+            .hl_group("Type")
+            .build(),
+    );
+    let _ = title_buffer.set_extmark(
+        opts.custom_highlight_id, // namespaceID
+        0,                        // start line/row
+        43,                       // start col
+        &SetExtmarkOpts::builder()
+            .end_line(0)
+            .end_col(49)
+            // .hl_group("Function")
+            .hl_group("Identifier")
+            .build(),
+    );
 
     //
     // Not allow to modify after adding content
@@ -332,6 +366,13 @@ where
 
     if let Ok(title_window) = open_win(&title_buffer, false, &title_window_config) {
         title_window_handle = title_window.handle();
+
+        // Add window left padding
+        let _ = set_option_value(
+            "foldcolumn",
+            POPUP_WINDOW_AUTO_WIDTH_PADDING_EACH_SIDE.to_string(),
+            &OptionOpts::builder().win(title_window.clone()).build(),
+        );
     }
 
     //
@@ -365,6 +406,13 @@ where
 
     if let Ok(input_window) = open_win(&input_buffer, false, &input_window_config) {
         input_window_handle = input_window.handle();
+
+        // Add window left padding
+        let _ = set_option_value(
+            "foldcolumn",
+            POPUP_WINDOW_AUTO_WIDTH_PADDING_EACH_SIDE.to_string(),
+            &OptionOpts::builder().win(input_window.clone()).build(),
+        );
     }
 
     //
@@ -408,7 +456,18 @@ where
             true,
             &OptionOpts::builder().win(list_window.clone()).build(),
         );
+
+        // Add window left padding
+        let _ = set_option_value(
+            "foldcolumn",
+            POPUP_WINDOW_AUTO_WIDTH_PADDING_EACH_SIDE.to_string(),
+            &OptionOpts::builder().win(list_window.clone()).build(),
+        );
     }
+
+    //
+    // Add left padding to all windows
+    //
 
     //
     // Inupt buffer keybindings:
@@ -418,6 +477,7 @@ where
         input_window_handle,
         list_window_handle,
         selected_callback,
+        opts.custom_highlight_id,
     );
 
     //
@@ -504,6 +564,7 @@ fn run_test_picker_2() {
                 String::from("./build.sh"),
                 String::from("./build_release.sh"),
             ],
+            custom_highlight_id: 1,
         },
         |selected_text: String| {
             #[cfg(feature = "enable_picker_debug_print")]
@@ -557,7 +618,7 @@ use nvim_oxi::{
     BufHandle, WinHandle,
     api::{
         Buffer, Error as NvimError, Window, cmd as vim_cmd, create_buf, get_current_line, open_win,
-        opts::{CmdOpts, OptionOpts, SetKeymapOpts},
+        opts::{CmdOpts, OptionOpts, SetExtmarkOpts, SetKeymapOpts},
         set_current_win, set_keymap, set_option_value,
         types::{CmdInfos, Mode, WindowBorder, WindowBorderChar, WindowConfig, WindowRelativeTo},
     },

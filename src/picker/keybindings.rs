@@ -1,7 +1,13 @@
 ///
 /// <c-j>/<c-k>: Move the cursor up and down in the list buffer and set the input buffer text
 ///
-fn ctrl_jk_callback(list_win_ref: &mut Window, is_ctrl_j: bool, input_buffer_ref: &mut Buffer) {
+fn ctrl_jk_callback(
+    list_win_ref: &mut Window,
+    is_ctrl_j: bool,
+    input_buffer_ref: &mut Buffer,
+    // custom_highlight_id: u32,
+    _: u32,
+) {
     if let Ok(cursor_pos) = &list_win_ref.get_cursor() {
         let mut row = cursor_pos.0;
         let col = cursor_pos.1;
@@ -34,6 +40,18 @@ fn ctrl_jk_callback(list_win_ref: &mut Window, is_ctrl_j: bool, input_buffer_ref
         }
 
         let _ = list_win_ref.set_cursor(row, col);
+
+        // let _ = list_win_ref.get_buf().unwrap().set_extmark(
+        //     custom_highlight_id, // namespace ID
+        //     row - 1,             // start line/row
+        //     0,                   // start col
+        //     &SetExtmarkOpts::builder()
+        //         .end_line((row - 1) as u32)
+        //         // .sign_text("▌")
+        //         // .sign_hl_group("String")
+        //         .line_hl_group("Type")
+        //         .build(),
+        // );
     }
 }
 
@@ -100,7 +118,6 @@ fn ctrl_e_to_close_the_picker(
     input_window_handle: i32,
     list_window_handle: i32,
 ) {
-
     // Back to normal mode
     let command = "stopinsert";
     let infos = CmdInfos::builder().cmd(command).build();
@@ -125,6 +142,7 @@ pub fn set_input_buffer_keybindings<F>(
     input_window_handle: i32,
     list_window_handle: i32,
     selected_callback: F,
+    custom_highlight_id: u32,
 ) where
     F: FnMut(String) + Clone + 'static,
 {
@@ -174,6 +192,7 @@ pub fn set_input_buffer_keybindings<F>(
                     &mut Window::from(list_window_handle),
                     true,
                     &mut Buffer::from(input_buffer_handle),
+                    custom_highlight_id,
                 );
             }),
         ),
@@ -186,6 +205,7 @@ pub fn set_input_buffer_keybindings<F>(
                     &mut Window::from(list_window_handle),
                     true,
                     &mut Buffer::from(input_buffer_handle),
+                    custom_highlight_id,
                 );
             }),
         ),
@@ -198,6 +218,7 @@ pub fn set_input_buffer_keybindings<F>(
                     &mut Window::from(list_window_handle),
                     false,
                     &mut Buffer::from(input_buffer_handle),
+                    custom_highlight_id,
                 );
             }),
         ),
@@ -210,6 +231,7 @@ pub fn set_input_buffer_keybindings<F>(
                     &mut Window::from(list_window_handle),
                     false,
                     &mut Buffer::from(input_buffer_handle),
+                    custom_highlight_id,
                 );
             }),
         ),
