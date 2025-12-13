@@ -42,6 +42,37 @@ pub fn toggle_spell_checking() {
     let _ = set_option_value("spell", toggled_value, &opts);
 }
 
+///
+/// Get back the left/right-split window
+///
+pub fn get_split_window(most_right: bool) -> Option<Window> {
+    let mut split_win: Option<Window> = None;
+
+    let mut last_split_win_column = -1i32;
+    for win in list_wins() {
+        if let Ok((rows, cols)) = win.get_position() {
+            //
+            // The most right window means:
+            //
+            // 1. rows is 0 but cols > 0
+            // 2. cols is the biggest value
+            //
+            if most_right && rows == 0 && cols > 0 && cols as i32 > last_split_win_column {
+                split_win = Some(win);
+                last_split_win_column = cols as i32;
+            }
+            //
+            // The most left window means: Both rows and cols are 0
+            //
+            else if !most_right && rows == 0 && cols == 0 {
+                split_win = Some(win);
+            }
+        }
+    }
+
+    split_win
+}
+
 use crate::picker::{PopupWindowOptions, create_popup_window};
 use nvim::api::{
     Window, cmd as vim_cmd, get_option_value, list_wins,

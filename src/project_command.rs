@@ -75,6 +75,202 @@ fn get_project_script_files(project_dir: &str) -> std::io::Result<Vec<String>> {
 }
 
 ///
+/// Get command buffer, create it if it's not exists yet
+///
+/// If `open_on_most_left_win` is `true`, open source code on most left window.
+///
+fn get_command_buffer(open_on_most_left_win: bool) -> Option<Buffer> {
+    #[cfg(feature = "enable_project_command_debug_print")]
+    const LOGGER_PREFIX: &'static str = "[ project_command - get_command_buffer ]";
+
+    const COMMAND_BUFFER_NAME: &'static str = "Command result";
+
+    let mut command_buffer: Option<Buffer> = None;
+
+    //
+    // Find the existing command buffer
+    //
+    let buffer_list = list_bufs().collect::<Vec<Buffer>>();
+    for buffer in buffer_list.iter() {
+        let opts = OptionOpts::builder().buffer(buffer.clone()).build();
+        let buffer_name = buffer.get_name();
+        let buffer_type = get_option_value::<NvimString>("buftype", &opts);
+        let buffer_file_type = get_option_value::<NvimString>("filetype", &opts);
+        let buffer_is_hidden = get_option_value::<NvimString>("bufhidden", &opts);
+        let buffer_has_swapfile = get_option_value::<bool>("swapfile", &opts);
+
+        match (
+            buffer_name,
+            buffer_type,
+            buffer_file_type,
+            buffer_is_hidden,
+            buffer_has_swapfile,
+        ) {
+            (Ok(name), Ok(b_type), Ok(file_type), Ok(is_hidden), Ok(has_swapfile)) => {
+                #[cfg(feature = "enable_project_command_debug_print")]
+                nvim::print!(
+                    concat!(
+                        "{} {{",
+                        "\n\tbuffer_name: {:?}",
+                        "\n\tbuffer_type: {:?}",
+                        "\n\tbuffer_file_type: {:?}",
+                        "\n\tbuffer_has_swapfile: {:?}",
+                        "\n\tbuffer_name: {:?}",
+                        "\n}}"
+                    ),
+                    LOGGER_PREFIX,
+                    &name,
+                    &b_type,
+                    &file_type,
+                    &is_hidden,
+                    &has_swapfile,
+                );
+
+                if name.to_str().unwrap().ends_with(COMMAND_BUFFER_NAME)
+                    && b_type == "nowrite"
+                    && file_type == "fish"
+                    && is_hidden == "hide"
+                    && !has_swapfile
+                {
+                    command_buffer = Some(Buffer::from(buffer.handle()));
+
+                    #[cfg(feature = "enable_project_command_debug_print")]
+                    if let Some(temp_buffer) = &command_buffer {
+                        nvim::print!(
+                            "{LOGGER_PREFIX} Found command buffer: {}",
+                            temp_buffer.handle()
+                        );
+                    }
+
+                    return command_buffer;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    //
+    // Create the new one if not exists yet
+    //
+    if command_buffer.is_none()
+        && let Ok(mut new_buffer) = create_buf(true, false)
+    {
+        #[cfg(feature = "enable_project_command_debug_print")]
+        nvim::print!(
+            "\n>>> {LOGGER_PREFIX} Created new command buffer: {}",
+            new_buffer.handle()
+        );
+
+        //
+        // Set related options
+        //
+        let opts = OptionOpts::builder().buffer(new_buffer.clone()).build();
+
+        let _ = set_option_value("buftype", "nowrite", &opts);
+        let _ = set_option_value("bufhidden", "hide", &opts);
+        let _ = set_option_value("swapfile", false, &opts);
+
+        // Allow to modify before finishing the command
+        let _ = set_option_value("modifiable", true, &opts);
+
+        // This enables the shell syntax color
+        let _ = set_option_value("filetype", "fish", &opts);
+
+        // Set the name
+        let _ = new_buffer.set_name(COMMAND_BUFFER_NAME);
+
+        //
+        // Setup local buffer keybindings
+        //
+        let _ = new_buffer.set_keymap(
+            Mode::Normal,
+            "<CR>",
+            "",
+            &SetKeymapOpts::builder()
+                .desc("Command result: open error/warning under cursor")
+                .callback(move |_| {
+                    // go_to_error_or_warning_under_cursor();
+                    ()
+                })
+                .build(),
+        );
+
+        command_buffer = Some(new_buffer);
+    }
+
+    command_buffer
+}
+
+///
+/// Execute the command and write the result back to the `command buffer`
+///
+fn execute_command(project_dir: &str, cmd: &str) {
+    #[cfg(feature = "enable_project_command_debug_print")]
+    const LOGGER_PREFIX: &'static str = "[ project_command - execute_command ]";
+
+    let mut command_buffer = get_command_buffer(true).unwrap();
+
+    let command_window = match get_split_window(true) {
+        Some(mut split_win) => {
+            let _ = split_win.set_buf(&command_buffer);
+            split_win
+        }
+        None => {
+            //
+            // Otherwise, create the new split window with the `command_buffer`
+            //
+            let command_window_config =
+                WindowConfig::builder().split(SplitDirection::Right).build();
+
+            open_win(&command_buffer, true, &command_window_config).unwrap()
+        }
+    };
+
+    //
+    // Set related options
+    //
+    let buffer_opts = OptionOpts::builder().buffer(command_buffer.clone()).build();
+
+    // Allow to modify before finishing the command
+    let _ = set_option_value("modifiable", true, &buffer_opts);
+
+    //
+    // Replace the command buffer content to running command and force to redraw
+    // to see the buffer change
+    //
+    let _ = command_buffer.set_lines(.., true, vec![format!("Running command: {cmd}")]);
+
+    //
+    // Run cmd and send output to the command buffer
+    //
+    // let temp_cmd = format!("cd {project_dir} && {cmd}");
+    // let cmd_list = vec![temp_cmd.as_str()];
+    let cmd_list = vec![cmd];
+        // .iter()
+        // .map(|v| v.as_str())
+        // .collect::<Vec<&str>>();
+    match cmd_utils::execute_command(cmd_list) {
+        cmd_utils::ExecuteCommandResult::Success {
+            cmd_desc,
+            exit_code,
+            output,
+        } => {
+            let _ = cmd_desc;
+            let _ = exit_code;
+            let _ = output;
+
+            #[cfg(feature = "enable_project_command_debug_print")]
+            nvim::print!("\n>>> {LOGGER_PREFIX} cmd output: {output}");
+
+            let _ = command_buffer.set_lines(.., true, vec![output]);
+        }
+        cmd_utils::ExecuteCommandResult::Fail { error_message } => {
+            let _ = command_buffer.set_lines(.., true, vec![error_message]);
+        }
+    }
+}
+
+///
 ///
 ///
 fn picker_selected_callback(project_dir: &str, selected_cmd: String) {
@@ -87,60 +283,69 @@ fn picker_selected_callback(project_dir: &str, selected_cmd: String) {
     let mut locked_state = MY_PROJECT_COMMAND_STATE.lock();
     let module_state = locked_state.as_mut().unwrap();
 
-    if let Some(state) = module_state.cmd_map.get_mut(project_dir) {
-        let mut cmd = selected_cmd;
+    let get_state_result = module_state.cmd_map.get_mut(project_dir);
+    if get_state_result.is_none() {
+        return;
+    }
 
-        //
-        // Pick the first line from the `state.cmd_list` if `cmd` is empty, otherwise, exit
-        //
-        if cmd.len() == 0 {
-            if state.cmd_list.len() == 0 {
-                return;
-            }
+    let state = get_state_result.unwrap();
+    let mut cmd = selected_cmd;
 
-            if let Some(cmd_index) = state.default_cmd_index {
-                cmd = state.cmd_list[cmd_index].clone();
-            } else {
-                cmd = state.cmd_list[0].clone();
-            }
+    //
+    // Pick the first line from the `state.cmd_list` if `cmd` is empty, otherwise, exit
+    //
+    if cmd.len() == 0 {
+        if state.cmd_list.len() == 0 {
+            return;
         }
 
-        #[cfg(feature = "enable_project_command_debug_print")]
-        nvim::print!("{LOGGER_PREFIX} called with '{cmd}'.");
-
-        //
-        // Update the cmd list if the cmd doesn't exists
-        //
-        if state
-            .cmd_list
-            .iter()
-            .find(|&item| item.cmp(&cmd) == core::cmp::Ordering::Equal)
-            .iter()
-            .count()
-            == 0
-        {
-            state.cmd_list.push(cmd.clone());
-
-            //
-            // Remove the empty placeholder line (used for rendering the empty list window) if exists.
-            //
-            state.cmd_list.retain(|line| !line.is_empty());
-        }
-
-        //
-        // Update the `default_cmd_index`
-        //
-        for index in 0..state.cmd_list.len() {
-            if state.cmd_list[index].cmp(&cmd) == core::cmp::Ordering::Equal {
-                state.default_cmd_index = Some(index);
-
-                #[cfg(feature = "enable_project_command_debug_print")]
-                nvim::print!("{LOGGER_PREFIX} update 'default_cmd_index' to: {index}");
-
-                break;
-            }
+        if let Some(cmd_index) = state.default_cmd_index {
+            cmd = state.cmd_list[cmd_index].clone();
+        } else {
+            cmd = state.cmd_list[0].clone();
         }
     }
+
+    #[cfg(feature = "enable_project_command_debug_print")]
+    nvim::print!("{LOGGER_PREFIX} called with '{cmd}'.");
+
+    //
+    // Update the cmd list if the cmd doesn't exists
+    //
+    if state
+        .cmd_list
+        .iter()
+        .find(|&item| item.cmp(&cmd) == core::cmp::Ordering::Equal)
+        .iter()
+        .count()
+        == 0
+    {
+        state.cmd_list.push(cmd.clone());
+
+        //
+        // Remove the empty placeholder line (used for rendering the empty list window) if exists.
+        //
+        state.cmd_list.retain(|line| !line.is_empty());
+    }
+
+    //
+    // Update the `default_cmd_index`
+    //
+    for index in 0..state.cmd_list.len() {
+        if state.cmd_list[index].cmp(&cmd) == core::cmp::Ordering::Equal {
+            state.default_cmd_index = Some(index);
+
+            #[cfg(feature = "enable_project_command_debug_print")]
+            nvim::print!("{LOGGER_PREFIX} update 'default_cmd_index' to: {index}");
+
+            break;
+        }
+    }
+
+    //
+    //
+    //
+    execute_command(project_dir, &cmd);
 }
 
 ///
@@ -299,19 +504,26 @@ pub fn setup() {
     );
 }
 
-use crate::picker::{
-    EditablePickerOptions, PopupWindowOptions, create_editable_picker_with_options,
+use crate::{
+    picker::{EditablePickerOptions, PopupWindowOptions, create_editable_picker_with_options},
+    utils::get_split_window,
 };
+
+use rust_utils::cmd as cmd_utils;
 
 use std::{
     collections::HashMap,
     sync::{LazyLock, Mutex},
 };
 
-use nvim_oxi::api::{
-    opts::SetKeymapOpts,
-    set_keymap,
-    types::{Mode, WindowBorder},
+use nvim_oxi::{
+    String as NvimString,
+    api::{
+        Buffer, create_buf, get_option_value, list_bufs, open_win,
+        opts::{OptionOpts, SetKeymapOpts},
+        set_keymap, set_option_value,
+        types::{Mode, SplitDirection, WindowBorder, WindowConfig},
+    },
 };
 
 #[cfg(feature = "enable_project_command_debug_print")]

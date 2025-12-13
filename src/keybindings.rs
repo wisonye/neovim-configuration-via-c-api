@@ -327,10 +327,26 @@ pub fn setup() {
                 .build(),
         );
     }
+
+    // Temporary testing purpose
+    let _ = set_keymap(
+        Mode::Normal,
+        "<leader>tt",
+        "",
+        &SetKeymapOpts::builder()
+            .desc("Temporary testing purpose")
+            .callback(move |_| {
+                let split_win = get_split_window(true);
+                nvim_oxi::print!("\n>>> split_win: {split_win:?}");
+                ()
+            })
+            .silent(true)
+            .build(),
+    );
 }
 
 use crate::utils::{
-    kill_other_windows, open_centred_floating_terminal_window, toggle_spell_checking,
+    kill_other_windows, open_centred_floating_terminal_window, toggle_spell_checking, get_split_window
 };
 
 use nvim_oxi::api::{opts::SetKeymapOpts, set_keymap, set_var, types::Mode};
