@@ -65,7 +65,7 @@ fn get_project_script_files(project_dir: &str) -> std::io::Result<Vec<String>> {
                 .map(|ext| ext == "sh")
                 .unwrap_or(false)
         })
-        .map(|d| d.file_name().into_string().unwrap())
+        .map(|d| format!("./{}", d.file_name().into_string().unwrap()))
         .collect::<Vec<String>>();
 
     // Sort by filename
