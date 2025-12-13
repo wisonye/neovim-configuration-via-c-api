@@ -239,16 +239,17 @@ fn execute_command(project_dir: &str, cmd: &str) {
     // to see the buffer change
     //
     let _ = command_buffer.set_lines(.., true, vec![format!("Running command: {cmd}")]);
+    let _ = command_window.call(|_| {
+        let redraw_command = "redraw";
+        let redraw_cmd_info = CmdInfos::builder().cmd(redraw_command).build();
+        let redraw_command_opts = CmdOpts::builder().output(false).build();
+        let _ = vim_cmd(&redraw_cmd_info, &redraw_command_opts);
+    });
 
     //
-    // Run cmd and send output to the command buffer
+    // Create `cmd_list`: the first element is the biniary name, and then all args follow
     //
-    // let temp_cmd = format!("cd {project_dir} && {cmd}");
-    // let cmd_list = vec![temp_cmd.as_str()];
-    let cmd_list = vec![cmd];
-        // .iter()
-        // .map(|v| v.as_str())
-        // .collect::<Vec<&str>>();
+    let cmd_list = cmd.split(" ").collect::<Vec<&str>>();
     match cmd_utils::execute_command(cmd_list) {
         cmd_utils::ExecuteCommandResult::Success {
             cmd_desc,
@@ -262,12 +263,30 @@ fn execute_command(project_dir: &str, cmd: &str) {
             #[cfg(feature = "enable_project_command_debug_print")]
             nvim::print!("\n>>> {LOGGER_PREFIX} cmd output: {output}");
 
-            let _ = command_buffer.set_lines(.., true, vec![output]);
+            //
+            // You have to split on `\n` before inserting to the command buffer!!!
+            //
+            let output_lines = output.split("\n").collect::<Vec<&str>>();
+            let mut result_list = Vec::with_capacity(output_lines.len() + 3);
+            let first_line = format!("Command: {cmd}");
+            result_list.push(first_line.as_str());
+            result_list.push("-------------------------------------------------------");
+            result_list.push("");
+            result_list.extend(output_lines);
+
+            let set_lines_result = command_buffer.set_lines(.., true, result_list);
+            let _ = set_lines_result;
+
+            // #[cfg(feature = "enable_project_command_debug_print")]
+            // nvim::print!("\n>>> {LOGGER_PREFIX} set_lines_result: {set_lines_result:?}");
         }
         cmd_utils::ExecuteCommandResult::Fail { error_message } => {
             let _ = command_buffer.set_lines(.., true, vec![error_message]);
         }
     }
+
+    // Not allow to modify after finishing the command
+    let _ = set_option_value("modifiable", false, &buffer_opts);
 }
 
 ///
@@ -519,10 +538,10 @@ use std::{
 use nvim_oxi::{
     String as NvimString,
     api::{
-        Buffer, create_buf, get_option_value, list_bufs, open_win,
-        opts::{OptionOpts, SetKeymapOpts},
+        Buffer, cmd as vim_cmd, create_buf, get_option_value, list_bufs, open_win,
+        opts::{CmdOpts, OptionOpts, SetKeymapOpts},
         set_keymap, set_option_value,
-        types::{Mode, SplitDirection, WindowBorder, WindowConfig},
+        types::{CmdInfos, Mode, SplitDirection, WindowBorder, WindowConfig},
     },
 };
 
