@@ -170,7 +170,6 @@ pub struct EditablePickerOptions<'epo> {
     pub title: String,
     pub window_opts: PopupWindowOptions,
     pub list: &'epo Vec<String>,
-    pub custom_highlight_id: u32,
 }
 
 ///
@@ -178,7 +177,7 @@ pub struct EditablePickerOptions<'epo> {
 ///
 #[derive(Debug)]
 pub struct EditablePickerOpenResult {
-    title_window_handle: i32,
+    pub title_window_handle: i32,
     input_window_handle: i32,
     list_window_handle: i32,
 }
@@ -232,37 +231,6 @@ where
 
     // Fill title buffer and set highlight colors
     let _ = title_buffer.set_lines(.., true, vec![opts.title.clone()])?;
-    let _ = title_buffer.set_extmark(
-        opts.custom_highlight_id, // namespace ID
-        0,                        // start line/row
-        0,                        // start col
-        &SetExtmarkOpts::builder()
-            .end_line(0)
-            .end_col(15)
-            .hl_group("String")
-            .build(),
-    );
-    let _ = title_buffer.set_extmark(
-        opts.custom_highlight_id, // namespace ID
-        0,                        // start line/row
-        18,                       // start col
-        &SetExtmarkOpts::builder()
-            .end_line(0)
-            .end_col(24)
-            .hl_group("Type")
-            .build(),
-    );
-    let _ = title_buffer.set_extmark(
-        opts.custom_highlight_id, // namespaceID
-        0,                        // start line/row
-        43,                       // start col
-        &SetExtmarkOpts::builder()
-            .end_line(0)
-            .end_col(49)
-            // .hl_group("Function")
-            .hl_group("Identifier")
-            .build(),
-    );
 
     //
     // Not allow to modify after adding content
@@ -477,7 +445,6 @@ where
         input_window_handle,
         list_window_handle,
         selected_callback,
-        opts.custom_highlight_id,
     );
 
     //
@@ -564,7 +531,6 @@ fn run_test_picker_2() {
                 String::from("./build.sh"),
                 String::from("./build_release.sh"),
             ],
-            custom_highlight_id: 1,
         },
         |selected_text: String| {
             #[cfg(feature = "enable_picker_debug_print")]
@@ -618,7 +584,7 @@ use nvim_oxi::{
     BufHandle, WinHandle,
     api::{
         Buffer, Error as NvimError, Window, cmd as vim_cmd, create_buf, get_current_line, open_win,
-        opts::{CmdOpts, OptionOpts, SetExtmarkOpts, SetKeymapOpts},
+        opts::{CmdOpts, OptionOpts, SetKeymapOpts},
         set_current_win, set_keymap, set_option_value,
         types::{CmdInfos, Mode, WindowBorder, WindowBorderChar, WindowConfig, WindowRelativeTo},
     },

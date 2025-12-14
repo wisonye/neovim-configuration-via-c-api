@@ -491,10 +491,9 @@ fn open(options: ProjectCommandOptions) {
         //
         // Open the picker
         //
-        let open_result = create_editable_picker_with_options(
+        if let Ok(open_result) = create_editable_picker_with_options(
             &mut EditablePickerOptions {
-                title: "Project Command ('Ctrl+d' to delete item, 'Ctrl+e' to close picker)"
-                    .to_string(),
+                title: "Project Command ('Ctrl+e' to close picker)".to_string(),
                 window_opts: PopupWindowOptions {
                     border: WindowBorder::Rounded,
                     window_width_ratio: None,
@@ -504,17 +503,30 @@ fn open(options: ProjectCommandOptions) {
                     buffer: None,
                 },
                 list: &display_cmd_list,
-                custom_highlight_id: module_state.custom_highlight.unwrap(),
             },
             move |selected_text: String| {
                 picker_selected_callback(&project_dir, selected_text);
             },
-        );
-
-        #[cfg(feature = "enable_project_command_debug_print")]
-        nvim::print!("{LOGGER_PREFIX} open_result: {open_result:#?}");
-
-        let _ = open_result;
+        ) {
+            let custom_highlight_id = module_state.custom_highlight.unwrap();
+            if let Ok(mut title_buffer) = Window::from(open_result.title_window_handle).get_buf() {
+                let _ = title_buffer.set_extmark(
+                    custom_highlight_id, // namespace ID
+                    0,                   // start line/row
+                    18,                  // start col
+                    &SetExtmarkOpts::builder()
+                        .end_line(0)
+                        .end_col(24)
+                        //
+                        // You can run `:h highlight-groups` in Neovim to show all supported
+                        // highlight group values.
+                        //
+                        // .hl_group("TermCursor")
+                        .hl_group("Question")
+                        .build(),
+                );
+            }
+        };
     };
 }
 
@@ -555,9 +567,9 @@ use std::{
 use nvim_oxi::{
     String as NvimString,
     api::{
-        Buffer, cmd as vim_cmd, create_buf, create_namespace, get_option_value, list_bufs,
+        Buffer, Window, cmd as vim_cmd, create_buf, create_namespace, get_option_value, list_bufs,
         open_win,
-        opts::{CmdOpts, OptionOpts, SetKeymapOpts},
+        opts::{CmdOpts, OptionOpts, SetExtmarkOpts, SetKeymapOpts},
         set_keymap, set_option_value,
         types::{CmdInfos, Mode, SplitDirection, WindowBorder, WindowConfig},
     },

@@ -5,8 +5,6 @@ fn ctrl_jk_callback(
     list_win_ref: &mut Window,
     is_ctrl_j: bool,
     input_buffer_ref: &mut Buffer,
-    // custom_highlight_id: u32,
-    _: u32,
 ) {
     if let Ok(cursor_pos) = &list_win_ref.get_cursor() {
         let mut row = cursor_pos.0;
@@ -113,11 +111,7 @@ fn enter_callback<F>(
 ///
 /// <c-e> or <ESC>: Quit the picker without trigger the `selected_callback`.
 ///
-fn close_the_picker(
-    title_window_handle: i32,
-    input_window_handle: i32,
-    list_window_handle: i32,
-) {
+fn close_the_picker(title_window_handle: i32, input_window_handle: i32, list_window_handle: i32) {
     // Back to normal mode
     let command = "stopinsert";
     let infos = CmdInfos::builder().cmd(command).build();
@@ -133,7 +127,7 @@ fn close_the_picker(
 ///
 /// Set the following keybindings for the input buffer:
 ///
-/// - <c-j>/<c-k>: Move the cursor up and down in the list buffer.
+/// - <c-j>/<c-k>: Move the cursor up and down in the list buffer and set the input buffer text
 /// - <CR>: Add input into the list buffer IF it doesn't exists, and then trigger callback.
 /// - <c-e>: Quit the picker without trigger the `selected_callback`.
 ///
@@ -142,7 +136,6 @@ pub fn set_input_buffer_keybindings<F>(
     input_window_handle: i32,
     list_window_handle: i32,
     selected_callback: F,
-    custom_highlight_id: u32,
 ) where
     F: FnMut(String) + Clone + 'static,
 {
@@ -192,7 +185,6 @@ pub fn set_input_buffer_keybindings<F>(
                     &mut Window::from(list_window_handle),
                     true,
                     &mut Buffer::from(input_buffer_handle),
-                    custom_highlight_id,
                 );
             }),
         ),
@@ -205,7 +197,6 @@ pub fn set_input_buffer_keybindings<F>(
                     &mut Window::from(list_window_handle),
                     true,
                     &mut Buffer::from(input_buffer_handle),
-                    custom_highlight_id,
                 );
             }),
         ),
@@ -218,7 +209,6 @@ pub fn set_input_buffer_keybindings<F>(
                     &mut Window::from(list_window_handle),
                     false,
                     &mut Buffer::from(input_buffer_handle),
-                    custom_highlight_id,
                 );
             }),
         ),
@@ -231,7 +221,6 @@ pub fn set_input_buffer_keybindings<F>(
                     &mut Window::from(list_window_handle),
                     false,
                     &mut Buffer::from(input_buffer_handle),
-                    custom_highlight_id,
                 );
             }),
         ),
@@ -240,11 +229,7 @@ pub fn set_input_buffer_keybindings<F>(
             "<c-e>",
             "'<c-e>' to close the picker",
             Box::new(move || {
-                close_the_picker(
-                    title_window_handle,
-                    input_window_handle,
-                    list_window_handle,
-                );
+                close_the_picker(title_window_handle, input_window_handle, list_window_handle);
             }),
         ),
         (
@@ -252,11 +237,7 @@ pub fn set_input_buffer_keybindings<F>(
             "<c-e>",
             "'<c-e>' to close the picker",
             Box::new(move || {
-                close_the_picker(
-                    title_window_handle,
-                    input_window_handle,
-                    list_window_handle,
-                );
+                close_the_picker(title_window_handle, input_window_handle, list_window_handle);
             }),
         ),
         (
@@ -264,11 +245,7 @@ pub fn set_input_buffer_keybindings<F>(
             "<ESC>",
             "'<ESC>' to close the picker",
             Box::new(move || {
-                close_the_picker(
-                    title_window_handle,
-                    input_window_handle,
-                    list_window_handle,
-                );
+                close_the_picker(title_window_handle, input_window_handle, list_window_handle);
             }),
         ),
     ];
