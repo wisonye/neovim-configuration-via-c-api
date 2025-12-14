@@ -17,89 +17,6 @@ This is the statistics result of my =/backup/nvim_lua= folder:
 
 As you can see that, I hand-wrote =3384= lines of =Lua= to configure my Neovim to what I want (of course, some of the custom plugins serve the same purpose with different implementations; that's my habit: build the same thing in a different way to iterate on the best solution).
 
-The custom plugin I wrote includes the following:
-
-- =Dired=: An Emacs major mode for directory browsing and editing, rewritten in Lua to use in Neovim.
-
-        Example =dired buffer=:
-
-    #+BEGIN_SRC bash
-        # [ Dired buffer ]
-        /Users/wison/rust:
-        total 16
-        drwxr-xr-x   23 wison  staff   736B 14 Dec 16:20 temp-rust
-        drwxr-xr-x   12 wison  staff   384B 14 Dec 16:12 my-neovim-config
-        drwxr-x---+ 101 wison  staff   3.2K 14 Dec 09:56 ..
-        drwxr-xr-x   12 wison  staff   384B 30 Nov 10:21 .
-        drwxr-xr-x   20 wison  staff   640B 30 Nov 10:18 nvim-oxi
-        drwxr-xr-x    8 wison  staff   256B 27 Nov 13:48 rust-ffi-demo
-        drwxr-xr-x    9 wison  staff   288B 27 Nov 11:42 rust-utils
-        drwxr-xr-x    9 wison  staff   288B 25 Nov 08:30 universal-package-manager
-        drwxr-xr-x    8 wison  staff   256B 23 Nov 10:00 ratatui-demo
-        drwxr-xr-x   46 wison  staff   1.4K 23 Nov 09:46 ratatui
-    #+END_SRC
-
-
-- =ProjectCommand=: A module to show a command list picker based on the current project scope. You can add or select a pre-filled command and run it to compile your project and run the binary; the result appears in a right-split terminal buffer window. If compilation fails, pressing ENTER on the error line will bring you to the source code.
-
-        Example Project command picker:
-
-        #+BEGIN_SRC bash
-           ╭──────────────────────────────────────────────╮
-           │  Project Command ('Ctrl+e' to close picker)  │
-           │──────────────────────────────────────────────│
-           │                                              │
-           │──────────────────────────────────────────────│
-           │  ./configure.sh                              │
-           │  ./run-call-odin-from-c.sh                   │
-           │  ./run-emacs-lib.sh                          │
-           │  ./run-multi-threading.sh                    │
-           │  ./run-raylib-test.sh                        │
-           │  ./run-tcp-client.sh                         │
-           │  ./run-tcp-server.sh                         │
-           │  ./run-test.sh                               │
-           │  ./run.sh                                    │
-           ╰──────────────────────────────────────────────╯
-        #+END_SRC
-
-
-        Example Project command buffer output:
-
-        #+BEGIN_SRC bash
-        Command: ./run-test.sh
-        -------------------------------------------------------
-
-        # [ Usage ]
-        # dynamically linked Debug build  : ./run-test.sh
-        # dynamically linked Relase build : RELEASE_BUILD=true ./run-test.sh
-        #
-
-        >>> [ RUN ]
-        >>> OS_TYPE: Darwin
-        >>> BUILD_TYPE: Debug
-        >>> COMMAND: odin build src/main_test.odin
-        -file  -debug
-        -out:./temp_build/main_test
-        -collection:utils=/Users/wison/odin/odin-utils
-        -define:LOGGER_LEVEL=0
-        -define:LOGGER_BUFFER_SIZE=512
-        -define:ENABLE_DEBUG_LOG=true
-        -define:DEFAULT_TEMP_ALLOCATOR_BACKING_SIZE=256
-        -define:TERMINAL_ENABLE_DEBUG_LOG=true
-        -define:ENABLE_FRAME_DEBUG_PRINT=true
-        -define:ENABLE_FRAME_DECODE_DEBUG_LOG=true
-        -define:ENABLE_FRAME_DECODE_ERROR_LOG=true
-        -define:ENABLE_FRAME_ENCODE_DEBUG_LOG=true
-        -define:UTILS_RING_BUFFER_QUEUE_CAPACITY=20
-        -define:EVENT_LOOP_ENABLE_DEBUG_LOG=true
-        && ./temp_build/main_test
-        >>>> COMMAND_IN_ONE_LINE: odin build src/main_test.odin  -file  -debug  -out:./temp_build/main_test  -collection:utils=/Users/wison/odin/odin-utils  -define:LOGGER_LEVEL=0  -define:LOGGER_BUFFER_SIZE=512  -define:ENABLE_DEBUG_LOG=true  -define:DEFAULT_TEMP_ALLOCATOR_BACKING_SIZE=256  -define:TERMINAL_ENABLE_DEBUG_LOG=true  -define:ENABLE_FRAME_DEBUG_PRINT=true  -define:ENABLE_FRAME_DECODE_DEBUG_LOG=true  -define:ENABLE_FRAME_DECODE_ERROR_LOG=true  -define:ENABLE_FRAME_ENCODE_DEBUG_LOG=true  -define:UTILS_RING_BUFFER_QUEUE_CAPACITY=20  -define:EVENT_LOOP_ENABLE_DEBUG_LOG=true  && ./temp_build/main_test 
-
-        >>> arr ==  nil: true
-        >>> len(arr): 0
-        #+END_SRC
-
-
 That said, I wrote a lot of Lua code just for an editor configuration:) That's fine for me, as I learned a lot from this process. 
 
 On the other hand, I also use =Emacs=, which is even more usecase than =Neovim=. That said, I hand-wrote a lot of =Emacs-Lisp= as well, here is the statistics result of my =/backup/emacs= folder:
@@ -122,6 +39,89 @@ Both =Lua= and =Emacs Lisp= are NOT my perferred language IF I have a choice. I 
 =Odin, Hare, Zig, Rust, C=
 
 That's what this little project tries to do, and see how it goes:)
+
+
+** The custom plugins I wrote include the following:
+
+*** =Dired=: An Emacs major mode for directory browsing and editing, rewritten in Lua to use in Neovim.
+
+Example =dired buffer=:
+
+#+BEGIN_SRC bash
+  # [ Dired buffer ]
+  /Users/wison/rust:
+  total 16
+  drwxr-xr-x   23 wison  staff   736B 14 Dec 16:20 temp-rust
+  drwxr-xr-x   12 wison  staff   384B 14 Dec 16:12 my-neovim-config
+  drwxr-x---+ 101 wison  staff   3.2K 14 Dec 09:56 ..
+  drwxr-xr-x   12 wison  staff   384B 30 Nov 10:21 .
+  drwxr-xr-x   20 wison  staff   640B 30 Nov 10:18 nvim-oxi
+  drwxr-xr-x    8 wison  staff   256B 27 Nov 13:48 rust-ffi-demo
+  drwxr-xr-x    9 wison  staff   288B 27 Nov 11:42 rust-utils
+  drwxr-xr-x    9 wison  staff   288B 25 Nov 08:30 universal-package-manager
+  drwxr-xr-x    8 wison  staff   256B 23 Nov 10:00 ratatui-demo
+  drwxr-xr-x   46 wison  staff   1.4K 23 Nov 09:46 ratatui
+#+END_SRC
+
+
+*** =ProjectCommand=: A module to show a command list picker based on the current project scope. You can add or select a pre-filled command and run it to compile your project and run the binary; the result appears in a right-split terminal buffer window. If compilation fails, pressing ENTER on the error line will bring you to the source code.
+
+Example =Project command picker=:
+
+#+BEGIN_SRC bash
+  ╭──────────────────────────────────────────────╮
+  │  Project Command ('Ctrl+e' to close picker)  │
+  │──────────────────────────────────────────────│
+  │                                              │
+  │──────────────────────────────────────────────│
+  │  ./configure.sh                              │
+  │  ./run-call-odin-from-c.sh                   │
+  │  ./run-emacs-lib.sh                          │
+  │  ./run-multi-threading.sh                    │
+  │  ./run-raylib-test.sh                        │
+  │  ./run-tcp-client.sh                         │
+  │  ./run-tcp-server.sh                         │
+  │  ./run-test.sh                               │
+  │  ./run.sh                                    │
+  ╰──────────────────────────────────────────────╯
+#+END_SRC
+
+
+Example =Project command buffer= output:
+
+#+BEGIN_SRC bash
+  Command: ./run-test.sh
+  -------------------------------------------------------
+
+  # [ Usage ]
+  # dynamically linked Debug build  : ./run-test.sh
+  # dynamically linked Relase build : RELEASE_BUILD=true ./run-test.sh
+  #
+
+  >>> [ RUN ]
+  >>> OS_TYPE: Darwin
+  >>> BUILD_TYPE: Debug
+  >>> COMMAND: odin build src/main_test.odin
+  -file  -debug
+  -out:./temp_build/main_test
+  -collection:utils=/Users/wison/odin/odin-utils
+  -define:LOGGER_LEVEL=0
+  -define:LOGGER_BUFFER_SIZE=512
+  -define:ENABLE_DEBUG_LOG=true
+  -define:DEFAULT_TEMP_ALLOCATOR_BACKING_SIZE=256
+  -define:TERMINAL_ENABLE_DEBUG_LOG=true
+  -define:ENABLE_FRAME_DEBUG_PRINT=true
+  -define:ENABLE_FRAME_DECODE_DEBUG_LOG=true
+  -define:ENABLE_FRAME_DECODE_ERROR_LOG=true
+  -define:ENABLE_FRAME_ENCODE_DEBUG_LOG=true
+  -define:UTILS_RING_BUFFER_QUEUE_CAPACITY=20
+  -define:EVENT_LOOP_ENABLE_DEBUG_LOG=true
+  && ./temp_build/main_test
+  >>>> COMMAND_IN_ONE_LINE: odin build src/main_test.odin  -file  -debug  -out:./temp_build/main_test  -collection:utils=/Users/wison/odin/odin-utils  -define:LOGGER_LEVEL=0  -define:LOGGER_BUFFER_SIZE=512  -define:ENABLE_DEBUG_LOG=true  -define:DEFAULT_TEMP_ALLOCATOR_BACKING_SIZE=256  -define:TERMINAL_ENABLE_DEBUG_LOG=true  -define:ENABLE_FRAME_DEBUG_PRINT=true  -define:ENABLE_FRAME_DECODE_DEBUG_LOG=true  -define:ENABLE_FRAME_DECODE_ERROR_LOG=true  -define:ENABLE_FRAME_ENCODE_DEBUG_LOG=true  -define:UTILS_RING_BUFFER_QUEUE_CAPACITY=20  -define:EVENT_LOOP_ENABLE_DEBUG_LOG=true  && ./temp_build/main_test 
+
+  >>> arr ==  nil: true
+  >>> len(arr): 0
+#+END_SRC
 
 
 ** How it works?
