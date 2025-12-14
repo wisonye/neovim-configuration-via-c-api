@@ -111,9 +111,9 @@ fn enter_callback<F>(
 }
 
 ///
-/// <c-e>: Quit the picker without trigger the `selected_callback`.
+/// <c-e> or <ESC>: Quit the picker without trigger the `selected_callback`.
 ///
-fn ctrl_e_to_close_the_picker(
+fn close_the_picker(
     title_window_handle: i32,
     input_window_handle: i32,
     list_window_handle: i32,
@@ -240,7 +240,7 @@ pub fn set_input_buffer_keybindings<F>(
             "<c-e>",
             "'<c-e>' to close the picker",
             Box::new(move || {
-                ctrl_e_to_close_the_picker(
+                close_the_picker(
                     title_window_handle,
                     input_window_handle,
                     list_window_handle,
@@ -252,7 +252,19 @@ pub fn set_input_buffer_keybindings<F>(
             "<c-e>",
             "'<c-e>' to close the picker",
             Box::new(move || {
-                ctrl_e_to_close_the_picker(
+                close_the_picker(
+                    title_window_handle,
+                    input_window_handle,
+                    list_window_handle,
+                );
+            }),
+        ),
+        (
+            Mode::Normal,
+            "<ESC>",
+            "'<ESC>' to close the picker",
+            Box::new(move || {
+                close_the_picker(
                     title_window_handle,
                     input_window_handle,
                     list_window_handle,
