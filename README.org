@@ -43,9 +43,9 @@ That's what this little project tries to do, and see how it goes:)
 
 ** The custom plugins I wrote include the following:
 
-*** =Dired=: An Emacs major mode for directory browsing and editing, rewritten in Lua to use in Neovim.
+*** =Dired=: An Emacs major mode for directory browsing and editing, rewritten in Lua/rust to use in Neovim.
 
-Example =dired buffer=:
+Example =dired buffer= in Neovim by pressing default binding: ~<c-c>j~
 
 #+BEGIN_SRC bash
   # [ Dired buffer ]
@@ -66,7 +66,7 @@ Example =dired buffer=:
 
 *** =ProjectCommand=: A module to show a command list picker based on the current project scope. You can add or select a pre-filled command and run it to compile your project and run the binary; the result appears in a right-split terminal buffer window. If compilation fails, pressing ENTER on the error line will bring you to the source code.
 
-Example =Project command picker=:
+Example =Project command picker= in Neovim by pressing default binding: ~<leader>pc~
 
 #+BEGIN_SRC bash
   ╭──────────────────────────────────────────────╮
@@ -87,7 +87,7 @@ Example =Project command picker=:
 #+END_SRC
 
 
-Example =Project command buffer= output:
+Example =Project command buffer= output when pressing ~<CR>~ on the selected command:
 
 #+BEGIN_SRC bash
   Command: ./run-test.sh
@@ -147,18 +147,24 @@ My first try is [[https://github.com/noib3/nvim-oxi][nvim-oxi]]: A neovim API ru
 #+BEGIN_SRC bash
   tree -L2
   .
-  ├── build_release.sh     # Compile and copy to Neovim config directory (release build)
-  ├── build.sh             # Compile and copy to Neovim config directory (debug build)
+  ├── build_release.sh        # Compile and copy to Neovim config directory (release build)
+  ├── build.sh                # Compile and copy to Neovim config directory (debug build)
   ├── Cargo.lock
   ├── Cargo.toml
   ├── README.org
   └── src
-      ├── lib.rs           # Pluging entry point
+      ├── lib.rs              # Pluging entry point
       ├── settings.rs
-      ├── keybindings.rs
       ├── auto_groups.rs
-      ├── my_dired.rs
-      └── utils.rs
+      ├── keybindings.rs
+      ├── utils.rs
+      ├── my_dired.rs         # `dired` plugin
+      ├── picker              # Common picker implementation
+      │   ├── keybindings.rs
+      │   ├── picker.rs
+      │   └── popup_window.rs  
+      ├── picker.rs
+      └── project_command.rs  # `ProjectCommand` plugin
 #+END_SRC
 
 
