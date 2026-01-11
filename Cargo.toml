@@ -28,8 +28,11 @@ enable_picker_debug_print = []
 # Picker specified debug print: `src/project_command`
 enable_project_command_debug_print = []
 
+# Support missing APIs
+enables_support_missing_apis = []
+
 
 [dependencies]
-nvim-oxi = { version = "0.6.0", features = ["neovim-0-11"] }
-# nvim-oxi = { path = "../nvim-oxi", features = ["neovim-0-11"] }
+# nvim-oxi = { version = "0.6.0", features = ["neovim-0-11"] }
+nvim-oxi = { path = "../nvim-oxi", features = ["neovim-0-11"] }
 rust_utils = { git = "https://github.com/wisonye/rust-utils.git", branch = "master" }

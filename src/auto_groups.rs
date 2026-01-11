@@ -22,7 +22,7 @@ pub fn setup() {
                 let _ = set_option_value(
                     "filetype",
                     "fish",
-                    &OptionOpts::builder().buffer(Buffer::current()).build(),
+                    &OptionOpts::builder().buf(Buffer::current()).build(),
                 );
 
                 #[cfg(feature = "enable_auto_groups_debug_print")]
@@ -88,7 +88,7 @@ pub fn setup() {
                 let mut current_buffer = Buffer::current();
                 let buffer_file_type = get_option_value::<NvimString>(
                     "filetype",
-                    &OptionOpts::builder().buffer(current_buffer.clone()).build(),
+                    &OptionOpts::builder().buf(current_buffer.clone()).build(),
                 );
 
                 if let Ok(b_filetype) = buffer_file_type {

@@ -30,7 +30,7 @@ fn create_popup_buffer() -> Result<Buffer, NvimError> {
         picker_buffer.handle()
     );
 
-    let buffer_opts = OptionOpts::builder().buffer(picker_buffer.clone()).build();
+    let buffer_opts = OptionOpts::builder().buf(picker_buffer.clone()).build();
     let _ = set_option_value("number", false, &buffer_opts);
     let _ = set_option_value("signcolumn", "no", &buffer_opts);
     let _ = set_option_value("swapfile", "no", &buffer_opts);
@@ -64,7 +64,7 @@ where
     let mut picker_buffer = create_popup_buffer()?;
     let picker_buffer_id = picker_buffer.handle();
 
-    let buffer_opts = OptionOpts::builder().buffer(picker_buffer.clone()).build();
+    let buffer_opts = OptionOpts::builder().buf(picker_buffer.clone()).build();
     let _ = set_option_value("number", false, &buffer_opts);
     let _ = set_option_value("signcolumn", "no", &buffer_opts);
     let _ = set_option_value("swapfile", "no", &buffer_opts);
@@ -235,8 +235,8 @@ where
     //
     // Not allow to modify after adding content
     //
-    let title_buffer_opts = OptionOpts::builder().buffer(title_buffer.clone()).build();
-    let list_buffer_opts = OptionOpts::builder().buffer(list_buffer.clone()).build();
+    let title_buffer_opts = OptionOpts::builder().buf(title_buffer.clone()).build();
+    let list_buffer_opts = OptionOpts::builder().buf(list_buffer.clone()).build();
     let _ = set_option_value("modifiable", false, &title_buffer_opts);
     let _ = set_option_value("modifiable", false, &list_buffer_opts);
 

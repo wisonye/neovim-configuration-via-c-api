@@ -72,7 +72,7 @@ fn get_dired_buffer(create_new_one_if_not_exists: bool) -> i32 {
     for buffer in buffer_list.iter() {
         let is_dired_buffer = buffer.get_var::<bool>(UNIQUE_DIRED_BUFFER_FLAG);
 
-        let opts = OptionOpts::builder().buffer(buffer.clone()).build();
+        let opts = OptionOpts::builder().buf(buffer.clone()).build();
         let buffer_type = get_option_value::<NvimString>("buftype", &opts);
 
         #[cfg(feature = "enable_my_dired_debug_print")]
@@ -135,7 +135,7 @@ fn get_dired_buffer(create_new_one_if_not_exists: bool) -> i32 {
         //
         // Set related options
         //
-        let opts = OptionOpts::builder().buffer(dired_buffer.clone()).build();
+        let opts = OptionOpts::builder().buf(dired_buffer.clone()).build();
 
         let _ = set_option_value("buftype", "nowrite", &opts);
         let _ = set_option_value("bufhidden", "hide", &opts);
@@ -272,7 +272,7 @@ fn list_directories_into_dired_buffer(dired_buffer_handle: i32, dir: &str) {
     // vim.api.nvim_buf_set_name(dired_buffer, buf_info.dir)
 
     // Allow to modify before finishing the command
-    let opts = OptionOpts::builder().buffer(dired_buffer.clone()).build();
+    let opts = OptionOpts::builder().buf(dired_buffer.clone()).build();
     let _ = set_option_value("modifiable", true, &opts);
 
     match cmd_utils::execute_command(vec!["ls", "-lhta", dir]) {
@@ -367,7 +367,7 @@ fn open() {
     }
 
     let mut dir: &str = "";
-    let unwrapped_path = buffer_filename.unwrap();
+    let unwrapped_path = std::path::PathBuf::from(buffer_filename.unwrap());
 
     if unwrapped_path.is_dir() {
         if let Some(p) = unwrapped_path.to_str() {

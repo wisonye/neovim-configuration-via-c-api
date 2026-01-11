@@ -54,6 +54,27 @@ fn my_neovim_configuration() -> bool {
     // picker::setup();
     project_command::setup();
 
+    #[cfg(feature = "enables_support_missing_apis")]
+    {
+        let lua_body_string = 
+        // r#"
+        // local a, b = ...
+        // vim.print('>>> exec_lua param: a:'.. a .. ', b: ' ..b)
+        // return ('result: %s'):format(a + b)
+        // "#
+        r#"
+            local lsp_enable_result = vim.lsp.enable("clangd")
+            -- vim.print("\n>>> lsp_enable_result: " .. lsp_enable_result)
+            return lsp_enable_result
+        "#;
+
+        let execute_result = nvim::api::exec_lua::<String>(
+            lua_body_string,
+            vec!["".to_string()]
+        );
+        nvim::print!(">>> execute_result: {execute_result:#?}");
+    }
+
     #[cfg(feature = "enable_plugin_debug_print")]
     nvim::print!("\n>>> My Neovim Configuration has loaded successfully.");
 
@@ -70,3 +91,6 @@ mod picker;
 mod project_command;
 mod settings;
 mod utils;
+
+#[cfg(feature = "enables_support_missing_apis")]
+mod extended_api;

@@ -108,7 +108,7 @@ fn get_command_buffer(open_on_most_left_win: bool) -> Option<Buffer> {
     //
     let buffer_list = list_bufs().collect::<Vec<Buffer>>();
     for buffer in buffer_list.iter() {
-        let opts = OptionOpts::builder().buffer(buffer.clone()).build();
+        let opts = OptionOpts::builder().buf(buffer.clone()).build();
         let buffer_name = buffer.get_name();
         let buffer_type = get_option_value::<NvimString>("buftype", &opts);
         let buffer_file_type = get_option_value::<NvimString>("filetype", &opts);
@@ -180,7 +180,7 @@ fn get_command_buffer(open_on_most_left_win: bool) -> Option<Buffer> {
         //
         // Set related options
         //
-        let opts = OptionOpts::builder().buffer(new_buffer.clone()).build();
+        let opts = OptionOpts::builder().buf(new_buffer.clone()).build();
 
         let _ = set_option_value("buftype", "nowrite", &opts);
         let _ = set_option_value("bufhidden", "hide", &opts);
@@ -245,7 +245,7 @@ fn execute_command(project_dir: &str, cmd: &str) {
     //
     // Set related options
     //
-    let buffer_opts = OptionOpts::builder().buffer(command_buffer.clone()).build();
+    let buffer_opts = OptionOpts::builder().buf(command_buffer.clone()).build();
 
     // Allow to modify before finishing the command
     let _ = set_option_value("modifiable", true, &buffer_opts);
